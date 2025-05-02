@@ -133,7 +133,7 @@ export default function DashboardPage() {
                   className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
                   onClick={() => handleSelectMethod(method.id)}
                 >
-                  Use Method
+                  Use this Technique
                 </Button>
               </CardFooter>
             </Card>
@@ -180,7 +180,7 @@ export default function DashboardPage() {
                   className="bg-accent text-accent-foreground hover:bg-accent/90"
                   onClick={() => handleSelectMethod(selectedMethod)}
                 >
-                  Use This Method
+                  Use this Technique
                 </Button>
               </div>
             </>
