@@ -4,9 +4,8 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
-import { BrowserRouter } from 'react-router-dom';
 
-const appName = import.meta.env.VITE_APP_NAME || 'FreakyForce';
+const appName = import.meta.env.VITE_APP_NAME || 'Learn2Learn';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
@@ -14,11 +13,7 @@ createInertiaApp({
     setup({ el, App, props }) {
         const root = createRoot(el);
 
-        root.render(
-            <BrowserRouter>
-                <App {...props} />
-            </BrowserRouter>
-        );
+        root.render(<App {...props} />);
     },
     progress: {
         color: '#4B5563',

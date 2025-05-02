@@ -1,6 +1,5 @@
 import { useState } from "react"
-import { Inertia } from '@inertiajs/inertia'
-import { usePage } from "@inertiajs/react"
+import { usePage, router } from "@inertiajs/react"
 import { type SharedData} from "@/types";
 import { Clock, FileText, BookMarked, ListTodo, Lightbulb, LayoutGrid } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -94,7 +93,7 @@ export default function DashboardPage() {
   const {auth} = usePage<SharedData>().props;
   const [selectedMethod, setSelectedMethod] = useState<number | null>(null)
   const handleSelectMethod = (methodId: number) => {
-    Inertia.visit(`/notepad?method=${methodId}`)  
+    router.visit(`/notepad?method=${methodId}`)  
   }
 
   return (
