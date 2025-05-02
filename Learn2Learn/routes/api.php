@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\NoteController;
+use App\Http\Controllers\Api\TagController;
 
 Route::middleware('auth:sanctum')->group(function () {
     // Custom Note Routes
@@ -17,6 +18,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // update: PUT/PATCH /notes/{note}
     // destroy: DELETE /notes/{note}
     Route::apiResource('notes', NoteController::class);
+    
+    // Custom Tag Routes
+    Route::get('/tags/popular', [TagController::class, 'popular'])->name('tags.popular');
+    Route::get('/tags/unused', [TagController::class, 'unused'])->name('tags.unused');
+    
+    // Standard API Resource Routes for Tags
+    Route::apiResource('tags', TagController::class);
 
     // You might want to add other API routes here, for example, for the authenticated user:
     // Route::get('/user', function (Request $request) {
