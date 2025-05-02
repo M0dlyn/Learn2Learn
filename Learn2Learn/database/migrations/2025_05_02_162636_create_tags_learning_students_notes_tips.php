@@ -28,28 +28,19 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // 3. Create students table
-        Schema::create('students', function (Blueprint $table) {
-            $table->id();
-            $table->string('username')->unique();
-            $table->string('name'); // Added for Laravel compatibility
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable(); // For email verification
-            $table->string('password');
-            $table->rememberToken(); // For "remember me" functionality
-            $table->timestamps();
-        });
+        // 3. Students table removed - using standard users table now
 
-        // 4. Create notes table (depends on students and learning_technics)
+        // 4. Create notes table (depends on users and learning_technics)
         Schema::create('notes', function (Blueprint $table) {
             $table->id();
             $table->string('title');
             $table->text('content');
-            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('user_id'); // Changed to reference users table
             $table->unsignedBigInteger('learning_technic_id');
             $table->timestamps();
 
-            $table->foreign('user_id')->references('id')->on('students')->onDelete('cascade');
+            // Link directly to users table
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('learning_technic_id')->references('id')->on('learning_technics')->onDelete('cascade');
         });
 
@@ -84,7 +75,7 @@ return new class extends Migration
         Schema::dropIfExists('tag_notes');
         Schema::dropIfExists('tips');
         Schema::dropIfExists('notes');
-        Schema::dropIfExists('students');
+        // Schema::dropIfExists('students'); // Removed as students table is no longer created here
         Schema::dropIfExists('learning_technics');
         Schema::dropIfExists('tags');
     }
