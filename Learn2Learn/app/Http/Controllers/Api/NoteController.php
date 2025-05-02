@@ -113,23 +113,24 @@ class NoteController extends Controller
     // --- Custom Methods ---
 
     /**
-     * Get notes by tag for the authenticated user.
-     * Assumes tag is passed as slug or ID in the route.
+     * Get notes associated with a specific tag for the authenticated user.
      */
-    public function getByTag(Request $request, Tag $tag) // Using route model binding for Tag
+    public function getByTag(Request $request, Tag $tag) // Use route model binding for Tag
     {
-         $this->authorize('viewAny', Note::class); // Users can view lists
+        // Authorization check: Ensure user can view notes (similar to index)
+        $this->authorize('viewAny', Note::class);
 
-         $notes = $request->user()
-                          ->notes()
-                          ->whereHas('tags', function ($query) use ($tag) {
-                              $query->where('tags.id', $tag->id); // Filter by the specific tag's ID
-                          })
-                          ->with('tags') // Eager load tags
-                          ->latest()
-                          ->paginate(15);
+        // Fetch notes for the authenticated user that have the given tag
+        $notes = $request->user()
+                        ->notes() // Get user's notes
+                        ->whereHas('tags', function ($query) use ($tag) {
+                            $query->where('tags.id', $tag->id); // Filter by the specific tag ID
+                        })
+                        ->with('tags') // Eager load tags for the response
+                        ->latest() // Order by newest
+                        ->paginate(15); // Paginate results
 
-         return NoteResource::collection($notes);
+        return NoteResource::collection($notes);
     }
 
     /**

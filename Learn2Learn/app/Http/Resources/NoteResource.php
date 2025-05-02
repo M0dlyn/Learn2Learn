@@ -20,6 +20,7 @@ class NoteResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'content' => $this->content,
+            'user_id' => $this->user_id,
             'learning_technic_id' => $this->learning_technic_id,
             'created_at' => $this->created_at?->toIso8601String(), // Use null safe operator
             'updated_at' => $this->updated_at?->toIso8601String(), // Use null safe operator
