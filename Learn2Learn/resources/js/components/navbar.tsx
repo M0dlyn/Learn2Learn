@@ -1,6 +1,9 @@
 import { Link, useLocation } from "react-router-dom"
 import { Brain, User, LogOut, Settings, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { UserMenuContent } from '@/components/user-menu-content';
+import { usePage } from '@inertiajs/react';
+import { type SharedData } from '@/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +17,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export function Navbar() {
   const { pathname } = useLocation();
+  const { auth } = usePage<SharedData>().props;
 
   const isActive = (path: string) => {
     return pathname === path
@@ -104,37 +108,18 @@ export function Navbar() {
 
           {/* User Menu */}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-                  <AvatarFallback>JD</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">John Doe</p>
-                  <p className="text-xs leading-none text-muted-foreground">john.doe@example.com</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
+                <AvatarFallback>{auth.user.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <UserMenuContent user={auth.user} />
+          </DropdownMenuContent>
+        </DropdownMenu>
         </div>
       </div>
     </header>

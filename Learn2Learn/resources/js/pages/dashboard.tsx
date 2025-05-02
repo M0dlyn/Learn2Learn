@@ -1,5 +1,7 @@
 import { useState } from "react"
 import { Inertia } from '@inertiajs/inertia'
+import { usePage } from "@inertiajs/react"
+import { type SharedData} from "@/types";
 import { Clock, FileText, BookMarked, ListTodo, Lightbulb, LayoutGrid } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -89,6 +91,7 @@ const learningMethods = [
 ]
 
 export default function DashboardPage() {
+  const {auth} = usePage<SharedData>().props;
   const [selectedMethod, setSelectedMethod] = useState<number | null>(null)
   const handleSelectMethod = (methodId: number) => {
     Inertia.visit(`/notepad?method=${methodId}`)  
@@ -98,9 +101,9 @@ export default function DashboardPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
 
-      <main className="flex-1 container py-8">
-        <div className="mb-8 p-8">
-          <h1 className="text-3xl font-bold mb-2 text-foreground">Welcome to LearnSmart</h1>
+      <main className="flex-1 container py-8 w-full">
+        <div className="pt-8 text-center">
+          <h1 className="text-3xl font-bold mb-2 text-foreground">Welcome to Learn2Learn, {auth.user.name}</h1>
           <p className="text-muted-foreground">Select a learning method below to get started with your notes.</p>
         </div>
 
@@ -139,6 +142,44 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
+
+        <div className="flex items-center justify-center h-screen p-4">
+  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full max-w-screen-xl">
+    {learningMethods.map((method) => (
+      <Card
+        key={method.id}
+        className="overflow-hidden hover:shadow-md transition-shadow border-secondary bg-card"
+      >
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-3">
+            <div className="rounded-full p-2 bg-secondary text-accent-foreground">
+              <method.icon className="h-8 w-8" />
+            </div>
+            <CardTitle className="text-lg">{method.title}</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pb-2">
+          <CardDescription className="line-clamp-2">{method.description}</CardDescription>
+        </CardContent>
+        <CardFooter className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1 border-accent hover:bg-accent hover:text-accent-foreground"
+            onClick={() => setSelectedMethod(method.id)}
+          >
+            Learn More
+          </Button>
+          <Button
+            className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+            onClick={() => handleSelectMethod(method.id)}
+          >
+            Use Method
+          </Button>
+        </CardFooter>
+      </Card>
+    ))}
+  </div>
+</div>
       </main>
 
       <Dialog open={selectedMethod !== null} onOpenChange={(open) => !open && setSelectedMethod(null)}>
@@ -150,7 +191,7 @@ export default function DashboardPage() {
                   <div className="rounded-full p-2 bg-secondary text-accent-foreground">
                     {(() => {
                       const IconComponent = learningMethods[selectedMethod - 1].icon
-                      return <IconComponent className="h-5 w-5" />
+                      return <IconComponent className="h-8 w-8" />
                     })()}
                   </div>
                   <DialogTitle>{learningMethods[selectedMethod - 1].title}</DialogTitle>
