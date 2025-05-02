@@ -292,4 +292,53 @@ class NoteTest extends TestCase
             'id' => $otherUsersNote->id,
         ]);
     }
+
+    /**
+     * Test authenticated user can get their notes filtered by a specific tag.
+     */
+    public function test_authenticated_user_can_get_notes_by_tag(): void
+    {
+        // Arrange: Create user, technic, tags, and notes
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $learningTechnic = LearningTechnic::factory()->create();
+        $tagToFind = Tag::factory()->create(['name' => 'Target Tag']);
+        $otherTag = Tag::factory()->create(['name' => 'Other Tag']);
+
+        // Notes for the authenticated user
+        $noteWithTag = Note::factory()->create(['user_id' => $user->id, 'learning_technic_id' => $learningTechnic->id]);
+        $noteWithTag->tags()->attach($tagToFind);
+
+        $noteWithOtherTag = Note::factory()->create(['user_id' => $user->id, 'learning_technic_id' => $learningTechnic->id]);
+        $noteWithOtherTag->tags()->attach($otherTag);
+
+        $noteWithBothTags = Note::factory()->create(['user_id' => $user->id, 'learning_technic_id' => $learningTechnic->id]);
+        $noteWithBothTags->tags()->attach([$tagToFind->id, $otherTag->id]);
+
+        $noteWithNoTags = Note::factory()->create(['user_id' => $user->id, 'learning_technic_id' => $learningTechnic->id]);
+
+        // Note for another user with the target tag
+        $otherUsersNoteWithTag = Note::factory()->create(['user_id' => $otherUser->id, 'learning_technic_id' => $learningTechnic->id]);
+        $otherUsersNoteWithTag->tags()->attach($tagToFind);
+
+        // Act: Authenticate and make request
+        Sanctum::actingAs($user);
+        $response = $this->getJson("/api/notes/tag/{$tagToFind->id}");
+
+        // Assert: Check status, structure, count, and specific notes
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'data' => [
+                '*' => ['id', 'title', 'content', 'user_id', 'learning_technic_id', 'created_at', 'updated_at', 'tags']
+            ],
+            'links',
+            'meta'
+        ]);
+        $response->assertJsonCount(2, 'data'); // Should find noteWithTag and noteWithBothTags
+        $response->assertJsonFragment(['id' => $noteWithTag->id]);
+        $response->assertJsonFragment(['id' => $noteWithBothTags->id]);
+        $response->assertJsonMissing(['id' => $noteWithOtherTag->id]); // Should not find this note
+        $response->assertJsonMissing(['id' => $noteWithNoTags->id]); // Should not find this note
+        $response->assertJsonMissing(['id' => $otherUsersNoteWithTag->id]); // Should not find other user's note
+    }
 }
