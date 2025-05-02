@@ -21,7 +21,7 @@ export function Navbar() {
 
   return (
     <header className="border-b bg-primary">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container flex h-16 p-6 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link to="/dashboard" className="flex items-center gap-2">
             <Brain className="h-6 w-6 text-accent" />
