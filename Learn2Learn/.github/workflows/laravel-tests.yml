@@ -1,9 +1,9 @@
 name: Laravel Tests
 
 on:
+  workflow_dispatch:
   pull_request:
-  push:
-    branches-ignore:
+    branches:
       - main
 
 jobs:
