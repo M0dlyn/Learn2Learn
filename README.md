@@ -15,6 +15,9 @@ Built with a React + TypeScript frontend (styled with Tailwind CSS) and a Larave
   <img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white" alt="Docker">
 </p>
 
+## ✅ How to run
+`composer run dev`
+
 ## 🚀 Features
 
 ### 📝 **Note Management**
