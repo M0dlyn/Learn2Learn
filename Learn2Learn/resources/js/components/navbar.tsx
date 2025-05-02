@@ -3,7 +3,7 @@ import { Menu } from "lucide-react"
 import Learn2LearnLogo from '@/components/learn2learn-logo';
 import { Button } from "@/components/ui/button"
 import { UserMenuContent } from '@/components/user-menu-content';
-import { usePage, Link } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 import { type SharedData } from '@/types';
 import {
   DropdownMenu,
@@ -17,7 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export function Navbar() {
-  const { url } = usePage();
+  const { pathname } = useLocation();
   const { auth } = usePage<SharedData>().props;
 
   const isActive = (path: string) => {
