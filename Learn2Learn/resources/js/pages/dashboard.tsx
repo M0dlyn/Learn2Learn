@@ -180,7 +180,7 @@ export default function DashboardPage() {
                   className="bg-accent text-accent-foreground hover:bg-accent/90"
                   onClick={() => handleSelectMethod(selectedMethod)}
                 >
-                  Use this Technique
+                  Use This Technique
                 </Button>
               </div>
             </>
