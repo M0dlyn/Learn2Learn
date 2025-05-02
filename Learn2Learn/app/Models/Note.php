@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\User;
 
 class Note extends Model
 {
@@ -24,11 +25,11 @@ class Note extends Model
     ];
 
     /**
-     * Get the student that owns the note.
+     * Get the user that owns the note.
      */
-    public function student(): BelongsTo
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(Student::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
