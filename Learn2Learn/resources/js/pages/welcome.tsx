@@ -15,18 +15,8 @@ export default function Welcome() {
                 {/* Header */}
                 <header className="flex w-full justify-between items-center  lg:px-12 bg-[#B2DFDB] text-[#263238] dark:bg-[#00796B] dark:text-[#E0F2F1]">
                     <div className="relative h-30 w-auto">
-                        {/* Logo for light mode */}
-                        <img
-                            src={blackLogoImage}
-                            alt="Learn2Learn Logo"
-                            className="h-full w-auto dark:hidden"
-                        />
-                        {/* Logo for dark mode */}
-                        <img
-                            src={whiteLogoImage}
-                            alt="Learn2Learn Logo"
-                            className="hidden h-full w-auto dark:block"
-                        />
+                        <img src={blackLogoImage} alt="Learn2Learn Logo" className="h-full w-auto dark:hidden"/>
+                        <img src={whiteLogoImage} alt="Learn2Learn Logo" className="hidden h-full w-auto dark:block"/>
                     </div>
                     <nav className="flex items-center gap-4">
                         {auth.user ? (

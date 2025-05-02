@@ -46,7 +46,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     </div>
 
                     <div className="my-6 flex items-center justify-start">
-                        <Button className="w-full" disabled={processing}>
+                        <Button className="w-full bg-[#00796B] text-[#E0F2F1] hover:bg-[#00695C] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#5DC6BC]" disabled={processing}>
                             {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
                             Email password reset link
                         </Button>
