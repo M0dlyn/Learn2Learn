@@ -15,6 +15,6 @@ class Tip extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'tip',
+        'tip', // Changed back from 'content'
     ];
 }
