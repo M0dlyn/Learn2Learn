@@ -1,5 +1,6 @@
 # Learn to Learn (L2L)
 
+hhh
 
 Learn to Learn (L2L) is a smart study assistant that helps users optimize their learning process through structured note-taking, proven study techniques, and AI-driven quizzes. The app allows users to save, organize, and tag notes for easy retrieval, while built-in tools like a Pomodoro timer and guided technique explanations (e.g., Active Recall, Spaced Repetition) help apply research-backed methods effectively. After each session, an AI-powered quiz generator analyzes the user’s notes and produces customized tests to reinforce retention.
 
