@@ -184,7 +184,7 @@ export default function DashboardPage() {
                   className="bg-[#00796B] text-[#E0F2F1] hover:bg-[#4DB6AC] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
                   onClick={() => handleSelectMethod(selectedMethod)}
                 >
-                  Use This Method
+                  Use This Technique
                 </Button>
               </div>
             </>
