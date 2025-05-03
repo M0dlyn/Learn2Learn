@@ -6,6 +6,17 @@ use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\LearningTechnicController;
 use App\Http\Controllers\Api\NoteRatingController;
+use App\Http\Controllers\Api\LearningTechniqueController;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider within a group which
+| is assigned the "api" middleware group. Enjoy building your API!
+|*/
 
 Route::middleware('auth:sanctum')->group(function () {
     // Custom Note Routes
@@ -36,6 +47,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('learning-technics', LearningTechnicController::class)->only([
         'index', 'show'
     ]);
+
+    // Route for fetching learning techniques
+    Route::get('/learning-techniques', [LearningTechniqueController::class, 'index']);
 
     // You might want to add other API routes here, for example, for the authenticated user:
     // Route::get('/user', function (Request $request) {

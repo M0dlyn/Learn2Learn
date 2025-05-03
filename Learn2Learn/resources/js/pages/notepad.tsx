@@ -1,160 +1,190 @@
-"use client"
+'use client';
 
-import { useState, useEffect, useCallback } from "react"
-import { router, usePage, Head } from "@inertiajs/react"
-import type { SharedData } from "@/types"
+import { Navbar } from '@/components/navbar';
+import { PomodoroTimer } from '@/components/pomodoro-timer';
+import { TipWidget } from '@/components/tip-widget'; // Import TipWidget component
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
-  FileText,
-  Plus,
-  Search,
-  ChevronDown,
-  FolderTree,
-  Hash,
-  Clock,
-  BookMarked,
-  ListTodo,
-  Lightbulb,
-  LayoutGrid,
-  X,
-  Menu,
-  Save,
-  MoreHorizontal,
-  Trash2,
-  PlusCircle, // Icon for adding tags
-  Filter, // Restore Filter icon import
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuPortal,
+    DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type { SharedData } from '@/types';
+import { Head, router, usePage } from '@inertiajs/react';
+import axios from 'axios';
+import {
+    Clock,
+    FileText, // Icon for adding tags
+    Filter,
+    Menu,
+    MoreHorizontal,
+    Plus,
+    PlusCircle,
+    Save,
+    Search,
+    Trash2, // Restore Filter icon import
   Brain, // Add this for the AI icon
   Loader2, // Add this for the loading state
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { PomodoroTimer } from "@/components/pomodoro-timer"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Navbar } from "@/components/navbar"
-import axios from 'axios';
+    Wand2,
+    X,
+} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast'; // Import toast components
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // Define Note and Tag interfaces (reuse from dashboard or define here)
 interface Tag {
-  id: number;
-  name: string;
-  // Add color later if provided by API
+    id: number;
+    name: string;
+    // Add color later if provided by API
 }
 
 interface Note {
-  id: number;
-  title: string;
-  content: string;
-  learning_technic_id: number;
-  tags: Tag[];
-  created_at: string;
-  updated_at: string;
-  // Add other fields if returned by the API and needed, e.g., user_id
+    id: number;
+    title: string;
+    content: string;
+    learning_technic_id: number | null; // Allow null for no method
+    tags: Tag[];
+    created_at: string;
+    updated_at: string;
+    // Add other fields if returned by the API and needed, e.g., user_id
 }
 
-// Learning methods data (Keep this for now, could be fetched later)
-const learningMethods = [
-  {
-    id: 1,
-    title: "Pomodoro Technique",
-    description: "Work for 25 minutes, then take a 5-minute break. After 4 cycles, take a longer break.",
-    icon: Clock,
-    color: "text-accent",
-  },
-  {
-    id: 2,
-    title: "Spaced Repetition",
-    description: "Review information at increasing intervals to improve long-term retention.",
-    icon: ListTodo,
-    color: "text-accent",
-  },
-  {
-    id: 3,
-    title: "Feynman Technique",
-    description: "Explain a concept in simple terms to identify gaps in your understanding.",
-    icon: BookMarked,
-    color: "text-accent",
-  },
-  {
-    id: 4,
-    title: "Active Recall",
-    description: "Test yourself on material instead of passively reviewing it.",
-    icon: Lightbulb,
-    color: "text-accent",
-  },
-  {
-    id: 5,
-    title: "Mind Mapping",
-    description: "Create visual diagrams to connect related concepts and ideas.",
-    icon: LayoutGrid,
-    color: "text-accent",
-  },
-  {
-    id: 6,
-    title: "Cornell Method",
-    description: "Divide your page into sections for notes, cues, and summary.",
-    icon: FileText,
-    color: "text-accent",
-  },
-]
+// Define interface for Learning Method data from API
+interface LearningMethod {
+    id: number;
+    name: string; // Changed from title to match API
+    description: string;
+    how_to_use: string; // Add the how_to_use field
+    category?: string; // Optional fields as needed
+    created_at?: string;
+    updated_at?: string;
+}
 
 // Helper function to get CSRF token
-function getXsrfToken() {
-  const cookies = document.cookie.split(';');
-  for (let cookie of cookies) {
-    const [name, value] = cookie.split('=').map(c => c.trim());
-    if (name === 'XSRF-TOKEN') {
-      return decodeURIComponent(value);
+const getXsrfToken = async () => {
+    // Re-implement logic to retrieve XSRF-TOKEN from cookies or wherever it's stored
+    // Example using standard cookie parsing:
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.split('=').map((c) => c.trim());
+        if (name === 'XSRF-TOKEN') {
+            return decodeURIComponent(value);
+        }
     }
-  }
-  return null;
-}
+    // Attempt to fetch if not found (common pattern with Laravel Sanctum)
+    try {
+        await axios.get('/sanctum/csrf-cookie');
+        // Retry getting the cookie
+        const updatedCookies = document.cookie.split(';');
+        for (let cookie of updatedCookies) {
+            const [name, value] = cookie.split('=').map((c) => c.trim());
+            if (name === 'XSRF-TOKEN') {
+                return decodeURIComponent(value);
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching CSRF cookie:', error);
+    }
+    console.error('XSRF Token not found.'); // Add error handling
+    return null;
+};
 
 // Helper function to get a consistent color for a tag
 const getTagColor = (tagId: number): string => {
-  const colors = [
-    'bg-red-500/20 text-red-700 border-red-500/30 hover:bg-red-500/30',
-    'bg-blue-500/20 text-blue-700 border-blue-500/30 hover:bg-blue-500/30',
-    'bg-green-500/20 text-green-700 border-green-500/30 hover:bg-green-500/30',
-    'bg-yellow-500/20 text-yellow-700 border-yellow-500/30 hover:bg-yellow-500/30',
-    'bg-purple-500/20 text-purple-700 border-purple-500/30 hover:bg-purple-500/30',
-    'bg-indigo-500/20 text-indigo-700 border-indigo-500/30 hover:bg-indigo-500/30',
-    'bg-pink-500/20 text-pink-700 border-pink-500/30 hover:bg-pink-500/30',
-    'bg-teal-500/20 text-teal-700 border-teal-500/30 hover:bg-teal-500/30',
-  ];
-  return colors[tagId % colors.length];
+    const colors = [
+        'bg-red-500/20 text-red-700 border-red-500/30 hover:bg-red-500/30',
+        'bg-blue-500/20 text-blue-700 border-blue-500/30 hover:bg-blue-500/30',
+        'bg-green-500/20 text-green-700 border-green-500/30 hover:bg-green-500/30',
+        'bg-yellow-500/20 text-yellow-700 border-yellow-500/30 hover:bg-yellow-500/30',
+        'bg-purple-500/20 text-purple-700 border-purple-500/30 hover:bg-purple-500/30',
+        'bg-indigo-500/20 text-indigo-700 border-indigo-500/30 hover:bg-indigo-500/30',
+        'bg-pink-500/20 text-pink-700 border-pink-500/30 hover:bg-pink-500/30',
+        'bg-teal-500/20 text-teal-700 border-teal-500/30 hover:bg-teal-500/30',
+    ];
+    return colors[tagId % colors.length];
+};
+
+// --- Placeholder Components (Define inline for now) ---
+const ActiveRecallDisplay: React.FC = () => (
+    <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
+        <p className="text-sm italic">(Interactive Active Recall Component Placeholder)</p>
+    </div>
+);
+const SpacedRepetitionDisplay: React.FC = () => (
+    <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
+        <p className="text-sm italic">(Interactive Spaced Repetition Component Placeholder)</p>
+    </div>
+);
+const BlurtingDisplay: React.FC = () => (
+    <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
+        <p className="text-sm italic">(Interactive Blurting Method Component Placeholder)</p>
+    </div>
+);
+const HighlightRevisitDisplay: React.FC = () => (
+    <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
+        <p className="text-sm italic">(Interactive Highlight & Revisit Component Placeholder)</p>
+    </div>
+);
+const TwoColumnNotesDisplay: React.FC = () => (
+    <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
+        <p className="text-sm italic">(Interactive Two Column Notes Component Placeholder)</p>
+    </div>
+);
+
+// --- Component Mapping ---
+const techniqueComponentMap: { [key: string]: React.FC } = {
+    'Pomodoro Technique': PomodoroTimer,
+    'Active Recall': ActiveRecallDisplay,
+    'Spaced Repetition': SpacedRepetitionDisplay,
+    'Blurting Method': BlurtingDisplay,
+    'Highlight & Revisit': HighlightRevisitDisplay,
+    'Two Column Notes': TwoColumnNotesDisplay,
 };
 
 export default function NotepadPage() {
-  const { url, props } = usePage<SharedData>()
-  const params = new URLSearchParams(url.split('?')[1])
-  const methodParam = params.get('method')
-  const methodIdNumber = methodParam ? parseInt(methodParam, 10) : 0
+    const { url, props } = usePage<SharedData>();
+    const params = new URLSearchParams(url.split('?')[1]);
+    const methodParam = params.get('method');
+    const methodIdNumber = methodParam ? parseInt(methodParam, 10) : 0;
 
-  // --- State Variables ---
-  const [notes, setNotes] = useState<Note[]>([]) // State for fetched notes
-  const [isLoadingNotes, setIsLoadingNotes] = useState(true)
-  const [notesError, setNotesError] = useState<string | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false)
-  const [allTags, setAllTags] = useState<Tag[]>([]);
-  const [isLoadingTags, setIsLoadingTags] = useState(true);
-  const [tagsError, setTagsError] = useState<string | null>(null);
-  const [newTagName, setNewTagName] = useState<string>("");
-  const [isCreatingTag, setIsCreatingTag] = useState(false);
-  const [createTagError, setCreateTagError] = useState<string | null>(null);
+    // --- State Variables ---
+    const [notes, setNotes] = useState<Note[]>([]); // State for fetched notes
+    const [isLoadingNotes, setIsLoadingNotes] = useState(true);
+    const [notesError, setNotesError] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [allTags, setAllTags] = useState<Tag[]>([]);
+    const [isLoadingTags, setIsLoadingTags] = useState(true);
+    const [tagsError, setTagsError] = useState<string | null>(null);
+    const [newTagName, setNewTagName] = useState<string>('');
+    const [isCreatingTag, setIsCreatingTag] = useState(false);
+    const [createTagError, setCreateTagError] = useState<string | null>(null);
 
-  const [activeNoteId, setActiveNoteId] = useState<number | null>(null) // Changed to activeNoteId
-  const [noteTitle, setNoteTitle] = useState("")
-  const [noteContent, setNoteContent] = useState("")
-  const [isCreatingNew, setIsCreatingNew] = useState(false)
-  const [showFileExplorer, setShowFileExplorer] = useState(true)
-  const [showMethodPanel, setShowMethodPanel] = useState(methodIdNumber > 0)
-  const [searchTerm, setSearchTerm] = useState("") // Added search state
-  const [selectedFilterTags, setSelectedFilterTags] = useState<Tag[]>([]); // Restore state for selected filter tags
+    const [activeNoteId, setActiveNoteId] = useState<number | null>(null); // Changed to activeNoteId
+    const [noteTitle, setNoteTitle] = useState('');
+    const [noteContent, setNoteContent] = useState('');
+    const [isCreatingNew, setIsCreatingNew] = useState(false);
+    const [showFileExplorer, setShowFileExplorer] = useState(true);
+    const [showMethodPanel, setShowMethodPanel] = useState(methodIdNumber > 0);
+    const [searchTerm, setSearchTerm] = useState(''); // Added search state
+    const [selectedFilterTags, setSelectedFilterTags] = useState<Tag[]>([]); // Restore state for selected filter tags
+    const [fetchedLearningMethods, setFetchedLearningMethods] = useState<LearningMethod[]>([]); // Use the new interface
+    const [isLoadingMethods, setIsLoadingMethods] = useState(true); // Loading state for methods
+    const [methodsError, setMethodsError] = useState<string | null>(null); // Error state for methods
+    const [showTipWidget, setShowTipWidget] = useState(true); // State to control tip widget visibility
 
   // Add these AI review state variables with your other states
   const [isReviewingWithAI, setIsReviewingWithAI] = useState(false);
@@ -162,365 +192,407 @@ export default function NotepadPage() {
   const [aiReviewError, setAiReviewError] = useState<string | null>(null);
   const [showAIReviewDialog, setShowAIReviewDialog] = useState(false);
 
-  const selectedMethod = methodIdNumber > 0 ? learningMethods.find((m) => m.id === methodIdNumber) : null
+    // Find selected method from fetched data
+    const selectedMethod = methodIdNumber > 0 ? fetchedLearningMethods.find((m) => m.id === methodIdNumber) : null;
 
-  useEffect(() => {
-    // When method changes via URL param, update the UI
-    if (methodIdNumber > 0) {
-      setShowMethodPanel(true)
-    }
-  }, [methodIdNumber])
+    useEffect(() => {
+        // When method changes via URL param, update the UI
+        if (methodIdNumber > 0) {
+            setShowMethodPanel(true);
+        }
+    }, [methodIdNumber]);
 
-  // --- Fetch Notes from API --- 
-  useEffect(() => {
-    async function fetchNotes() {
-      setIsLoadingNotes(true)
-      setNotesError(null)
-      try {
-        const xsrfToken = getXsrfToken();
-        const headers: HeadersInit = {
-          'Accept': 'application/json',
+    // --- Fetch Notes from API ---
+    useEffect(() => {
+        async function fetchNotes() {
+            setIsLoadingNotes(true);
+            setNotesError(null);
+            try {
+                const xsrfToken = await getXsrfToken();
+                const headers: HeadersInit = {
+                    Accept: 'application/json',
+                };
+                if (xsrfToken) {
+                    headers['X-XSRF-TOKEN'] = xsrfToken;
+                }
+                const response = await fetch('/api/notes', {
+                    // Use API endpoint
+                    credentials: 'include',
+                    headers: headers,
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response (Notes):', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                setNotes(data.data || []); // Assuming { data: [...] } structure
+            } catch (err) {
+                console.error('Failed to fetch notes:', err);
+                setNotesError(err instanceof Error ? err.message : 'An unknown error occurred');
+            } finally {
+                setIsLoadingNotes(false);
+            }
+        }
+
+        fetchNotes();
+    }, []); // Fetch once on mount
+
+    useEffect(() => {
+        const fetchTags = async () => {
+            setIsLoadingTags(true);
+            setTagsError(null);
+            try {
+                const csrfToken = await getXsrfToken();
+                // Assuming /api/tags returns all tags, adjust if paginated or different structure
+                const response = await axios.get('/api/tags', {
+                    headers: { 'X-XSRF-TOKEN': csrfToken },
+                });
+                // Assuming response structure is { data: Tag[] }
+                // If it's paginated like notes, you might need response.data.data
+                setAllTags(response.data.data || response.data);
+            } catch (error: any) {
+                console.error('Error fetching tags:', error);
+                setTagsError('Failed to load tags.');
+            } finally {
+                setIsLoadingTags(false);
+            }
         };
-        if (xsrfToken) {
-          headers['X-XSRF-TOKEN'] = xsrfToken;
-        }
-        const response = await fetch('/api/notes', { // Use API endpoint
-          credentials: 'include',
-          headers: headers
-        });
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('API Error Response (Notes):', errorText);
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setNotes(data.data || []) // Assuming { data: [...] } structure
-      } catch (err) {
-        console.error("Failed to fetch notes:", err);
-        setNotesError(err instanceof Error ? err.message : 'An unknown error occurred');
-      } finally {
-        setIsLoadingNotes(false)
-      }
-    }
 
-    fetchNotes();
-  }, []); // Fetch once on mount
+        fetchTags();
+    }, []); // Fetch tags once on mount
 
-  useEffect(() => {
-    const fetchTags = async () => {
-      setIsLoadingTags(true);
-      setTagsError(null);
-      try {
-        const csrfToken = await getXsrfToken();
-        // Assuming /api/tags returns all tags, adjust if paginated or different structure
-        const response = await axios.get('/api/tags', {
-          headers: { 'X-XSRF-TOKEN': csrfToken },
-        });
-        // Assuming response structure is { data: Tag[] }
-        // If it's paginated like notes, you might need response.data.data
-        setAllTags(response.data.data || response.data); 
-      } catch (error: any) {
-        console.error("Error fetching tags:", error);
-        setTagsError("Failed to load tags.");
-      } finally {
-        setIsLoadingTags(false);
-      }
+    useEffect(() => {
+        const fetchLearningMethods = async () => {
+            setIsLoadingMethods(true);
+            setMethodsError(null);
+            try {
+                const csrfToken = await getXsrfToken();
+                // Adjust endpoint if needed
+                const response = await axios.get('/api/learning-techniques', {
+                    headers: { 'X-XSRF-TOKEN': csrfToken },
+                });
+                console.log('Raw Learning Methods API Response:', response.data); // <-- ADD THIS LOG
+                setFetchedLearningMethods(response.data); // Assuming response.data is an array of LearningMethod
+            } catch (error: any) {
+                console.error('Error fetching learning methods:', error);
+                setMethodsError('Failed to load learning methods.');
+            } finally {
+                setIsLoadingMethods(false);
+            }
+        };
+
+        fetchLearningMethods();
+    }, []); // Fetch methods once on mount
+
+    // Effect to load note data into editor when activeNoteId changes or notes are loaded
+    useEffect(() => {
+        if (activeNoteId) {
+            const noteToLoad = notes.find((n) => n.id === activeNoteId);
+            if (noteToLoad) {
+                setNoteTitle(noteToLoad.title);
+                setNoteContent(noteToLoad.content);
+                setIsCreatingNew(false); // Ensure we are not in 'creating new' mode
+            } else {
+                // Note ID from URL is invalid or not found in loaded notes
+                // Optionally handle this case, e.g., show error or switch to new note view
+                // console.warn(`Note with ID ${activeNoteId} not found.`);
+                // handleNewNote(); // Example: Treat as new note if ID invalid
+            }
+        } else {
+            // If no activeNoteId is set (e.g., navigating to /notepad directly)
+            // ensure we are in the 'new note' state if not already.
+            if (!isCreatingNew) {
+                // Reset fields if not explicitly creating new
+                // handleNewNote(); // Or just reset fields if handleNewNote has side effects we don't want
+                setNoteTitle('Untitled Note');
+                setNoteContent('');
+            }
+        }
+    }, [activeNoteId, notes]); // Rerun when ID changes or notes array updates
+
+    // Handler to add/remove a tag from the active note's local state
+    const handleTagToggle = (tag: Tag) => {
+        if (!activeNoteId) return;
+
+        if (process.env.NODE_ENV === 'development') {
+            console.log('handleTagToggle received tag:', JSON.stringify(tag, null, 2)); // Log the received tag object
+        }
+
+        setNotes((prevNotes: Note[]) =>
+            prevNotes.map((note: Note) => {
+                if (note.id === activeNoteId) {
+                    const tagExists = note.tags?.some((t: Tag) => t.id === tag.id);
+                    let updatedTags;
+                    if (tagExists) {
+                        // Remove tag
+                        updatedTags = note.tags?.filter((t: Tag) => t.id !== tag.id) || [];
+                    } else {
+                        // Add tag
+                        updatedTags = [...(note.tags || []), tag];
+                    }
+                    return { ...note, tags: updatedTags };
+                }
+                return note;
+            }),
+        );
+        // Note: This only updates local state. The actual save happens via handleSaveNote.
     };
 
-    fetchTags();
-  }, []); // Fetch tags once on mount
-
-  // Effect to load note data into editor when activeNoteId changes or notes are loaded
-  useEffect(() => {
-    if (activeNoteId) {
-        const noteToLoad = notes.find(n => n.id === activeNoteId);
-        if (noteToLoad) {
-            setNoteTitle(noteToLoad.title);
-            setNoteContent(noteToLoad.content);
-            setIsCreatingNew(false); // Ensure we are not in 'creating new' mode
-        } else {
-          // Note ID from URL is invalid or not found in loaded notes
-          // Optionally handle this case, e.g., show error or switch to new note view
-          // console.warn(`Note with ID ${activeNoteId} not found.`);
-          // handleNewNote(); // Example: Treat as new note if ID invalid
+    // Handler to create a new tag via API
+    const handleCreateTag = async (e: React.FormEvent) => {
+        e.preventDefault(); // Prevent default form submission if used in a form
+        const trimmedName = newTagName.trim();
+        if (!trimmedName) {
+            setCreateTagError('Tag name cannot be empty.');
+            return;
         }
-    } else {
-        // If no activeNoteId is set (e.g., navigating to /notepad directly)
-        // ensure we are in the 'new note' state if not already.
-        if (!isCreatingNew) {
-          // Reset fields if not explicitly creating new
-          // handleNewNote(); // Or just reset fields if handleNewNote has side effects we don't want
-           setNoteTitle("Untitled Note");
-           setNoteContent("");
+
+        // Optional: Check if tag name already exists locally (case-insensitive)
+        if (allTags.some((tag) => tag.name.toLowerCase() === trimmedName.toLowerCase())) {
+            setCreateTagError(`Tag "${trimmedName}" already exists.`);
+            return;
         }
-    }
-  }, [activeNoteId, notes]); // Rerun when ID changes or notes array updates
 
-  // Handler to add/remove a tag from the active note's local state
-  const handleTagToggle = (tag: Tag) => {
-    if (!activeNoteId) return;
+        setIsCreatingTag(true);
+        setCreateTagError(null);
+        const csrfToken = await getXsrfToken();
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log("handleTagToggle received tag:", JSON.stringify(tag, null, 2)); // Log the received tag object
-    }
+        try {
+            const response = await axios.post('/api/tags', { name: trimmedName }, { headers: { 'X-XSRF-TOKEN': csrfToken } });
 
-    setNotes((prevNotes: Note[]) => 
-      prevNotes.map((note: Note) => { 
-        if (note.id === activeNoteId) {
-          const tagExists = note.tags?.some((t: Tag) => t.id === tag.id); 
-          let updatedTags;
-          if (tagExists) {
-            // Remove tag
-            updatedTags = note.tags?.filter((t: Tag) => t.id !== tag.id) || []; 
-          } else {
-            // Add tag
-            updatedTags = [...(note.tags || []), tag];
-          }
-          return { ...note, tags: updatedTags };
+            const newTag: Tag = response.data.data; // Assuming response { data: Tag }
+
+            // Add to the list of all tags
+            setAllTags((prevTags) => [...prevTags, newTag]);
+            // Clear the input
+            setNewTagName('');
+            // Optionally automatically assign the new tag to the current note
+            if (activeNoteId) {
+                handleTagToggle(newTag);
+            }
+            console.log('Tag created:', newTag);
+            toast.success(`Tag "${newTag.name}" created successfully!`);
+        } catch (error: any) {
+            console.error('Error creating tag:', error);
+            const errorMsg = error.response?.data?.message || 'Failed to create tag.';
+            // Handle specific errors like uniqueness constraint from backend if needed
+            if (error.response?.status === 422) {
+                // Unprocessable Entity (validation failed)
+                const validationError = error.response?.data?.errors?.name?.[0] || 'Validation failed.';
+                setCreateTagError(validationError);
+                toast.error(validationError); // Show validation error in toast
+            } else {
+                setCreateTagError(errorMsg);
+                toast.error(errorMsg); // Show general error in toast
+            }
+            // Add error toast here if desired
+        } finally {
+            setIsCreatingTag(false);
         }
-        return note;
-      })
-    );
-    // Note: This only updates local state. The actual save happens via handleSaveNote.
-  };
+    };
 
-  // Handler to create a new tag via API
-  const handleCreateTag = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent default form submission if used in a form
-    const trimmedName = newTagName.trim();
-    if (!trimmedName) {
-      setCreateTagError("Tag name cannot be empty.");
-      return;
-    }
+    // Restore Handler to toggle a tag in the filter state
+    const handleFilterTagToggle = (tag: Tag) => {
+        setSelectedFilterTags((prevSelected) => {
+            const isSelected = prevSelected.some((t) => t.id === tag.id);
+            if (isSelected) {
+                return prevSelected.filter((t) => t.id !== tag.id);
+            } else {
+                return [...prevSelected, tag];
+            }
+        });
+    };
 
-    // Optional: Check if tag name already exists locally (case-insensitive)
-    if (allTags.some(tag => tag.name.toLowerCase() === trimmedName.toLowerCase())) {
-      setCreateTagError(`Tag "${trimmedName}" already exists.`);
-      return;
-    }
+    // Restore Handler to clear all tag filters
+    const clearTagFilters = () => {
+        setSelectedFilterTags([]);
+    };
 
-    setIsCreatingTag(true);
-    setCreateTagError(null);
-    const csrfToken = await getXsrfToken();
+    // --- Event Handlers ---
+    const handleSelectNote = useCallback(
+        (noteId: number) => {
+            const note = notes.find((n) => n.id === noteId); // Use fetched notes
+            if (note) {
+                setActiveNoteId(noteId); // Update ID state
+                setNoteTitle(note.title);
+                setNoteContent(note.content);
+                setIsCreatingNew(false);
 
-    try {
-      const response = await axios.post('/api/tags', 
-        { name: trimmedName }, 
-        { headers: { 'X-XSRF-TOKEN': csrfToken } }
-      );
+                // Update URL based on selected note's method
+                const currentMethodId = note.learning_technic_id;
+                if (currentMethodId && currentMethodId > 0 && currentMethodId !== methodIdNumber) {
+                    // If note has a method and it's different from URL param, update URL to match note
+                    router.visit(`/notepad?note=${noteId}&method=${currentMethodId}`, { preserveState: true, replace: true });
+                } else if (!currentMethodId && methodIdNumber > 0) {
+                    router.visit('/notepad', { preserveState: true });
+                }
+            }
+        },
+        [notes, methodIdNumber],
+    ); // Depend on notes and methodIdNumber
 
-      const newTag: Tag = response.data.data; // Assuming response { data: Tag }
+    const handleNewNote = () => {
+        setActiveNoteId(null); // Clear active ID
+        setNoteTitle('Untitled Note'); // Provide default title
+        setNoteContent('');
+        setIsCreatingNew(true);
+        // Optionally clear the method from URL if creating new
+        if (methodIdNumber > 0) {
+            router.visit('/notepad', { preserveState: true });
+        }
+    };
 
-      // Add to the list of all tags
-      setAllTags((prevTags) => [...prevTags, newTag]);
-      // Clear the input
-      setNewTagName("");
-      // Optionally automatically assign the new tag to the current note
-      if (activeNoteId) {
-        handleTagToggle(newTag); 
-      }
-      console.log("Tag created:", newTag);
-      toast.success(`Tag "${newTag.name}" created successfully!`);
+    const toggleFileExplorer = () => {
+        setShowFileExplorer((prev) => !prev);
+    };
 
-    } catch (error: any) {
-      console.error("Error creating tag:", error);
-      const errorMsg = error.response?.data?.message || "Failed to create tag.";
-      // Handle specific errors like uniqueness constraint from backend if needed
-      if (error.response?.status === 422) { // Unprocessable Entity (validation failed)
-        const validationError = error.response?.data?.errors?.name?.[0] || "Validation failed.";
-        setCreateTagError(validationError);
-        toast.error(validationError); // Show validation error in toast
-      } else {
-        setCreateTagError(errorMsg);
-        toast.error(errorMsg); // Show general error in toast
-      }
-      // Add error toast here if desired
-    } finally {
-      setIsCreatingTag(false);
-    }
-  };
+    const toggleMethodPanel = () => {
+        setShowMethodPanel((prev) => !prev);
+    };
 
-  // Restore Handler to toggle a tag in the filter state
-  const handleFilterTagToggle = (tag: Tag) => {
-    setSelectedFilterTags((prevSelected) => {
-      const isSelected = prevSelected.some(t => t.id === tag.id);
-      if (isSelected) {
-        return prevSelected.filter(t => t.id !== tag.id);
-      } else {
-        return [...prevSelected, tag];
-      }
+    // Restore filtering by search term AND selected tags
+    const filteredNotes = notes.filter((note) => {
+        const searchTermLower = searchTerm.toLowerCase();
+        const titleMatch = note.title.toLowerCase().includes(searchTermLower);
+        // Basic content match (consider performance for large notes)
+        // const contentMatch = note.content?.toLowerCase().includes(searchTermLower);
+        const searchMatch = titleMatch; // || contentMatch;
+
+        const tagsMatch =
+            selectedFilterTags.length === 0 || selectedFilterTags.every((filterTag) => note.tags?.some((noteTag) => noteTag.id === filterTag.id));
+
+        return searchMatch && tagsMatch;
     });
-  };
 
-  // Restore Handler to clear all tag filters
-  const clearTagFilters = () => {
-    setSelectedFilterTags([]);
-  };
+    // Get the full Note object for the active ID
+    const activeNote = activeNoteId ? notes.find((n) => n.id === activeNoteId) : null;
 
-  // --- Event Handlers ---
-  const handleSelectNote = useCallback((noteId: number) => {
-    const note = notes.find((n) => n.id === noteId) // Use fetched notes
-    if (note) {
-      setActiveNoteId(noteId) // Update ID state
-      setNoteTitle(note.title)
-      setNoteContent(note.content)
-      setIsCreatingNew(false)
+    // --- Save Note Logic (Placeholder - requires API call) ---
+    const handleSaveNote = async () => {
+        if (!noteTitle.trim()) return;
+        setIsSaving(true);
 
-      // Update URL based on selected note's method
-      const currentMethodId = note.learning_technic_id;
-      if (currentMethodId > 0 && currentMethodId !== methodIdNumber) {
-        router.visit(`/notepad?method=${currentMethodId}`, { preserveState: true })
-      } else if (!currentMethodId && methodIdNumber > 0) { // Use !currentMethodId instead of === 0 for robustness
-        router.visit('/notepad', { preserveState: true })
-      }
-    }
-  }, [notes, methodIdNumber]) // Depend on notes and methodIdNumber
+        const noteData = {
+            title: noteTitle.trim(),
+            content: noteContent,
+            learning_technic_id: methodIdNumber === 0 ? null : methodIdNumber,
+            tags: activeNote?.tags?.map((tag) => tag.id) || [], // Send array of tag IDs
+        };
 
-  const handleNewNote = () => {
-    setActiveNoteId(null) // Clear active ID
-    setNoteTitle("Untitled Note") // Provide default title
-    setNoteContent("")
-    setIsCreatingNew(true)
-    // Optionally clear the method from URL if creating new
-    if (methodIdNumber > 0) {
-      router.visit('/notepad', { preserveState: true })
-    }
-  }
+        if (process.env.NODE_ENV === 'development') {
+            console.log('Data being sent to backend:', JSON.stringify(noteData, null, 2)); // Log the data
+        }
 
-  const toggleFileExplorer = () => {
-    setShowFileExplorer((prev) => !prev)
-  }
+        const csrfToken = await getXsrfToken();
 
-  const toggleMethodPanel = () => {
-    setShowMethodPanel((prev) => !prev)
-  }
+        try {
+            let response;
+            let savedNote: Note;
 
-  // Restore filtering by search term AND selected tags
-  const filteredNotes = notes.filter(note => {
-    const searchTermLower = searchTerm.toLowerCase();
-    const titleMatch = note.title.toLowerCase().includes(searchTermLower);
-    // Basic content match (consider performance for large notes)
-    // const contentMatch = note.content?.toLowerCase().includes(searchTermLower);
-    const searchMatch = titleMatch; // || contentMatch;
+            if (activeNoteId) {
+                // Update existing note
+                response = await axios.put(`/api/notes/${activeNoteId}`, noteData, {
+                    headers: { 'X-XSRF-TOKEN': csrfToken },
+                });
+                savedNote = response.data.data;
 
-    const tagsMatch = selectedFilterTags.length === 0 ||
-                      selectedFilterTags.every(filterTag =>
-                          note.tags?.some(noteTag => noteTag.id === filterTag.id)
-                      );
+                setNotes((prevNotes) =>
+                    prevNotes.map(
+                        (note) => (note.id === activeNoteId ? savedNote : note), // Use the complete updated note from the response
+                    ),
+                );
+            } else {
+                // Create new note
+                response = await axios.post('/api/notes', noteData, {
+                    headers: { 'X-XSRF-TOKEN': csrfToken },
+                });
+                savedNote = response.data.data;
 
-    return searchMatch && tagsMatch;
-  });
+                setNotes((prevNotes) => [savedNote, ...prevNotes]);
+                setActiveNoteId(savedNote.id);
+                // Ensure title is updated after save completes
+                setNoteTitle(savedNote.title);
+                // Update URL to reflect the new note ID and method (if applicable)
+                const newUrl = `/notepad?note=${savedNote.id}` + (savedNote.learning_technic_id ? `&method=${savedNote.learning_technic_id}` : '');
+                router.visit(newUrl, { preserveState: true, preserveScroll: true, replace: true });
+            }
 
-  // Get the full Note object for the active ID
-  const activeNote = activeNoteId ? notes.find(n => n.id === activeNoteId) : null;
+            console.log('Note saved successfully:', savedNote);
+            if (activeNoteId) {
+                toast.success('Note updated successfully!');
+            } else {
+                toast.success('Note created successfully!');
+            }
+        } catch (error: any) {
+            console.error('Error saving note:', error);
+            const errorMsg = error.response?.data?.message || 'Failed to save note.';
+            toast.error(errorMsg); // Display error via toast
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
-  // --- Save Note Logic (Placeholder - requires API call) ---
-  const handleSaveNote = async () => {
-    if (!noteTitle.trim()) return
-    setIsSaving(true)
+    const handleDeleteNote = async () => {
+        if (!activeNoteId || isDeleting) {
+            return;
+        }
 
-    const noteData = {
-      title: noteTitle.trim(),
-      content: noteContent,
-      learning_technic_id: methodIdNumber === 0 ? null : methodIdNumber,
-      tags: activeNote?.tags?.map(tag => tag.id) || [], // Send array of tag IDs
-    }
+        if (!window.confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
+            return;
+        }
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("Data being sent to backend:", JSON.stringify(noteData, null, 2)); // Log the data
-    }
+        setIsDeleting(true);
+        setNotesError(null); // Clear previous errors
+        const csrfToken = await getXsrfToken();
 
-    const csrfToken = await getXsrfToken();
+        try {
+            const response = await axios.delete(`/api/notes/${activeNoteId}`, {
+                headers: { 'X-XSRF-TOKEN': csrfToken },
+            });
 
-    try {
-      let response;
-      let savedNote: Note;
+            console.log('Note deleted:', response.data);
+            toast.success('Note deleted successfully!');
 
-      if (activeNoteId) {
-        // Update existing note
-        response = await axios.put(`/api/notes/${activeNoteId}`, noteData, {
-          headers: { 'X-XSRF-TOKEN': csrfToken },
-        });
-        savedNote = response.data.data;
+            // Remove note from state
+            setNotes((prevNotes) => prevNotes.filter((note) => note.id !== activeNoteId));
 
-        setNotes((prevNotes) =>
-          prevNotes.map((note) =>
-            note.id === activeNoteId ? savedNote : note // Use the complete updated note from the response
-          )
-        );
+            // Clear editor and selection
+            setActiveNoteId(null);
+            setNoteTitle('');
+            setNoteContent('');
 
-      } else {
-        // Create new note
-        response = await axios.post('/api/notes', noteData, {
-          headers: { 'X-XSRF-TOKEN': csrfToken },
-        });
-        savedNote = response.data.data;
+            // Navigate back to base URL
+            router.visit('/notepad', { preserveState: false, replace: true }); // Use preserveState: false to reset component state if needed
+        } catch (error: any) {
+            console.error('Error deleting note:', error);
+            const errorMsg = error.response?.data?.message || 'Failed to delete note.';
+            toast.error('Failed to delete note.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
-        setNotes((prevNotes) => [savedNote, ...prevNotes]);
-        setActiveNoteId(savedNote.id);
-        // Ensure title is updated after save completes
-        setNoteTitle(savedNote.title);
-        // Update URL to reflect the new note ID and method (if applicable)
-        const newUrl = `/notepad?note=${savedNote.id}` + (savedNote.learning_technic_id ? `&method=${savedNote.learning_technic_id}` : '');
-        router.visit(newUrl, { preserveState: true, preserveScroll: true, replace: true });
-      }
-
-      console.log("Note saved successfully:", savedNote);
-      if (activeNoteId) {
-        toast.success('Note updated successfully!');
-      } else {
-        toast.success('Note created successfully!');
-      }
-
-    } catch (error: any) {
-      console.error("Error saving note:", error);
-      const errorMsg = error.response?.data?.message || "Failed to save note.";
-      toast.error(errorMsg); // Display error via toast
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  const handleDeleteNote = async () => {
-    if (!activeNoteId || isDeleting) {
-      return;
-    }
-
-    if (!window.confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
-      return;
-    }
-
-    setIsDeleting(true);
-    setNotesError(null); // Clear previous errors
-    const csrfToken = await getXsrfToken();
-
-    try {
-      const response = await axios.delete(`/api/notes/${activeNoteId}`, {
-        headers: { 'X-XSRF-TOKEN': csrfToken },
-      });
-
-      console.log("Note deleted:", response.data);
-      toast.success('Note deleted successfully!');
-
-      // Remove note from state
-      setNotes((prevNotes) => prevNotes.filter((note) => note.id !== activeNoteId));
-
-      // Clear editor and selection
-      setActiveNoteId(null);
-      setNoteTitle('');
-      setNoteContent('');
-
-      // Navigate back to base URL
-      router.visit('/notepad', { preserveState: false, replace: true }); // Use preserveState: false to reset component state if needed
-
-    } catch (error: any) {
-      console.error("Error deleting note:", error);
-      const errorMsg = error.response?.data?.message || "Failed to delete note.";
-      toast.error('Failed to delete note.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+    const handleMethodSelect = (methodId: number) => {
+        // Update the learning_technic_id for the currently active note in the notes state
+        if (activeNoteId) {
+            setNotes((prevNotes) =>
+                prevNotes.map((note) =>
+                    note.id === activeNoteId
+                        ? { ...note, learning_technic_id: methodId === 0 ? null : methodId } // Set null if methodId is 0 (No Method)
+                        : note,
+                ),
+            );
+            // Mark that changes are pending save? (Optional, depends on desired UX)
+            // setIsDirty(true);
+        }
+        // Update URL without full reload
+        const newUrl =
+            methodId > 0
+                ? `/notepad?method=${methodId}${activeNoteId ? '&note=' + activeNoteId : ''}`
+                : `/notepad${activeNoteId ? '?note=' + activeNoteId : ''}`;
+        router.visit(newUrl, { preserveState: true, replace: true });
+    };
 
   const handleAIReview = async () => {
     if (!activeNoteId) {
@@ -568,418 +640,364 @@ export default function NotepadPage() {
     }
   };
 
-  const renderMethodComponent = () => {
-    if (!methodIdNumber) return null
+    const renderMethodComponent = () => {
+        if (!methodIdNumber) return null;
 
-    switch (methodIdNumber) {
-      case 1: // Pomodoro
-        return <PomodoroTimer />
-      case 2: // Spaced Repetition
-        return (
-          <div className="p-4 bg-card rounded-md">
-            <h3 className="font-medium mb-3">Spaced Repetition Schedule</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>First review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">Today</Badge>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>Second review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">Tomorrow</Badge>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>Third review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">3 days later</Badge>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>Fourth review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">1 week later</Badge>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>Fifth review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">2 weeks later</Badge>
-              </div>
-            </div>
-            <Button className="w-full mt-4 bg-accent hover:bg-accent/80 text-accent-foreground">
-              Mark as Reviewed
-            </Button>
-          </div>
-        )
-      // Add other method components as needed
-      default:
-        return (
-          <div className="p-4 bg-card rounded-md">
-            <h3 className="font-medium mb-2">{selectedMethod?.title}</h3>
-            <p className="text-sm">{selectedMethod?.description}</p>
-          </div>
-        )
-    }
-  }
+        // Ensure we have a selected method and name before looking up
+        if (!selectedMethod?.name) {
+            return null;
+        }
+        // Now it's safe to use selectedMethod.name
+        const TechniqueComponent = techniqueComponentMap[selectedMethod.name];
+        return TechniqueComponent ? <TechniqueComponent /> : null;
+    };
 
-  return (
-    <div className="flex flex-col h-screen bg-[#E0F2F1] text-[#263238] dark:bg-[#263238] dark:text-[#E0F2F1]">
-      <Head title="Notepad" />
-      <Toaster 
-        position="top-right" 
-        toastOptions={{
-          // Define default options
-          className: '',
-          duration: 5000,
-          style: {
-            background: '#B2DFDB', // Light background in light mode
-            color: '#263238',      // Dark text in light mode
-            border: '1px solid #4DB6AC' // Teal border
-          },
-          // Color modes handled through theme detection in toast
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#00796B', // Deep blue icon for light mode
-              secondary: '#E0F2F1', // Light background for icon
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#EF9A9A', // Light red icon
-              secondary: '#263238', // Dark background for icon in light mode
-            }
-          }
-        }}
-      />
-      <Navbar />
+    return (
+        <div className="flex h-screen flex-col bg-[#E0F2F1] text-[#263238] dark:bg-[#263238] dark:text-[#E0F2F1]">
+            <Head title="Notepad" />
+            <Toaster
+                position="top-right"
+                toastOptions={{
+                    // Define default options
+                    className: '',
+                    duration: 5000,
+                    style: {
+                        background: '#B2DFDB', // Light background in light mode
+                        color: '#263238',   // Dark text in light mode
+                        border: '1px solid #4DB6AC', // Teal border
+                    },
+                    // Color modes handled through theme detection in toast
+                    success: {
+                        duration: 3000,
+                        iconTheme: {
+                            primary: '#00796B', // Deep blue icon for light mode
+                            secondary: '#E0F2F1', // Light background for icon
+                        },
+                    },
+                    error: {
+                        iconTheme: {
+                            primary: '#EF9A9A', // Light red icon
+                            secondary: '#263238', // Dark background for icon in light mode
+                        },
+                    },
+                }}
+            />
+            <Navbar />
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* File explorer sidebar */}
-        {showFileExplorer && (
-          <div className="w-64 border-r border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F] flex flex-col">
-            <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30">
-              <span className="font-medium text-sm text-[#00796B] dark:text-[#4DB6AC]">Files</span>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]">
-                  <Search className="h-3.5 w-3.5" />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 relative text-[#263238]/70 dark:text-[#E0F2F1]/70 hover:text-[#263238] dark:hover:text-[#E0F2F1]">
-                      <Filter className="h-4 w-4" />
-                      {selectedFilterTags.length > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-[#00796B] dark:bg-[#4DB6AC] text-xs text-white">
-                          {selectedFilterTags.length}
-                        </span>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="w-56 bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50"
-                  >
-                    <DropdownMenuLabel className="text-[#00796B] dark:text-[#4DB6AC]">Filter by Tag</DropdownMenuLabel>
-                    <DropdownMenuSeparator className="bg-[#4DB6AC]" />
-                    {/* Rest of the dropdown content */}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]" onClick={handleNewNote}>
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
+            <div className="flex flex-1 overflow-hidden">
+                {/* File explorer sidebar */}
+                {showFileExplorer && (
+                    <div className="bg-card flex w-64 flex-col border-r">
+                        <div className="flex items-center justify-between border-b p-2">
+                            <span className="text-sm font-medium">Files</span>
+                            <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <Search className="h-3.5 w-3.5" />
+                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground relative h-6 w-6">
+                                            <Filter className="h-4 w-4" />
+                                            {selectedFilterTags.length > 0 && (
+                                                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-teal-500 text-xs text-white">
+                                                    {selectedFilterTags.length}
+                                                </span>
+                                            )}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56 border-[#4DB6AC]/50 bg-[#263238] text-[#E0F2F1]">
+                                        <DropdownMenuLabel className="text-teal-200">Filter by Tag</DropdownMenuLabel>
+                                        <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                                        {isLoadingTags ? (
+                                            <DropdownMenuItem disabled className="text-gray-400">
+                                                Loading tags...
+                                            </DropdownMenuItem>
+                                        ) : tagsError ? (
+                                            <DropdownMenuItem disabled className="text-red-400">
+                                                {tagsError}
+                                            </DropdownMenuItem>
+                                        ) : allTags.length > 0 ? (
+                                            allTags.map((tag) => (
+                                                <DropdownMenuCheckboxItem
+                                                    key={tag.id}
+                                                    checked={selectedFilterTags.some((t) => t.id === tag.id)}
+                                                    onCheckedChange={() => handleFilterTagToggle(tag)}
+                                                    className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
+                                                >
+                                                    {tag.name}
+                                                </DropdownMenuCheckboxItem>
+                                            ))
+                                        ) : (
+                                            <DropdownMenuItem disabled className="text-gray-400">
+                                                No tags available
+                                            </DropdownMenuItem>
+                                        )}
+                                        {selectedFilterTags.length > 0 && (
+                                            <>
+                                                <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                                                <DropdownMenuItem
+                                                    onSelect={clearTagFilters}
+                                                    className="text-red-400 focus:bg-red-500/20 focus:text-red-400"
+                                                >
+                                                    Clear Filters
+                                                </DropdownMenuItem>
+                                            </>
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewNote}>
+                                    <Plus className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        </div>
 
-            <ScrollArea className="flex-1">
-              <div className="p-2">
-                {isLoadingNotes && <p className="p-4 text-center text-[#00796B]/80 dark:text-[#B2DFDB]/80">Loading notes...</p>}
-                {notesError && <p className="p-4 text-center text-red-500 dark:text-red-400">Error: {notesError}</p>}
-                {!isLoadingNotes && !notesError && (
-                  <ul className="space-y-1">
-                    {filteredNotes.map((note) => (
-                      <li key={note.id}>
-                        <Button
-                          variant={activeNoteId === note.id ? "secondary" : "ghost"}
-                          className={`w-full justify-start h-auto py-2 px-3 text-left whitespace-normal ${
-                            activeNoteId === note.id 
-                              ? 'bg-[#00796B]/20 text-[#263238] dark:bg-[#4DB6AC]/20 dark:text-[#E0F2F1] border-l-2 border-[#00796B] dark:border-[#4DB6AC]' 
-                              : 'text-[#263238]/80 dark:text-[#B2DFDB] hover:bg-[#00796B]/10 dark:hover:bg-[#4DB6AC]/10 hover:text-[#263238] dark:hover:text-[#E0F2F1]'
-                          }`}
-                          onClick={() => handleSelectNote(note.id)}
-                        >
-                          <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span className="flex-grow truncate font-medium">{note.title || "Untitled Note"}</span>
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
+                        <ScrollArea className="flex-1">
+                            <div className="p-2">
+                                {isLoadingNotes && <p className="p-4 text-center text-[#B2DFDB]/80">Loading notes...</p>}
+                                {notesError && <p className="p-4 text-center text-red-400">Error: {notesError}</p>}
+                                {!isLoadingNotes && !notesError && (
+                                    <ul className="space-y-1">
+                                        {filteredNotes.map((note) => (
+                                            <li key={note.id}>
+                                                <Button
+                                                    variant={activeNoteId === note.id ? 'secondary' : 'ghost'}
+                                                    className={`h-auto w-full justify-start px-3 py-2 text-left whitespace-normal ${activeNoteId === note.id ? 'bg-[#4DB6AC]/20 text-[#E0F2F1]' : 'text-[#B2DFDB] hover:bg-[#4DB6AC]/10 hover:text-[#E0F2F1]'}`}
+                                                    onClick={() => handleSelectNote(note.id)}
+                                                >
+                                                    <FileText className="mr-2 h-4 w-4 flex-shrink-0" />
+                                                    <span className="flex-grow truncate font-medium">{note.title || 'Untitled Note'}</span>
+                                                </Button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </div>
                 )}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
-        {/* Main editor area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Editor toolbar */}
-          <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F]">
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleFileExplorer}>
-                <Menu className="h-4 w-4" />
-              </Button>
-              <Input
-                value={noteTitle}
-                onChange={(e) => setNoteTitle(e.target.value)}
-                placeholder="Untitled"
-                className="h-7 w-48 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 font-medium text-[#263238] dark:text-[#E0F2F1]"
-              />
-              <div className="flex flex-wrap gap-2 items-center mt-2 mb-1 min-h-[24px]">
-                {activeNote && activeNote.tags && activeNote.tags.length > 0 ? (
-                  activeNote.tags.map((tag) => (
-                    <Badge
-                      key={tag.id}
-                      variant="outline"
-                      className={`cursor-default text-xs px-2 py-0.5 rounded-full border ${getTagColor(tag.id)}`}
-                    >
-                      {tag.name}
-                    </Badge>
-                  ))
-                ) : (
-                  // Placeholder when no tags or no active note
-                  activeNoteId && <span className="text-xs text-gray-400 italic">No tags</span>
-                )}
-                {/* Tag Management Dropdown */}
-                {activeNoteId && ( // Only show button if a note is active
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 ml-2 text-teal-400 hover:text-teal-300 disabled:opacity-50"
-                        disabled={isLoadingTags || !!tagsError} // Disable if tags are loading/error
-                      >
-                        <PlusCircle className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="start"
-                      className="w-48 bg-[#37474F] text-[#E0F2F1] border-[#4DB6AC]/50"
-                    >
-                      <DropdownMenuLabel className="text-[#4DB6AC]">Assign Tags</DropdownMenuLabel>
-                      <DropdownMenuSeparator className="bg-[#4DB6AC]" />
-                      {isLoadingTags ? (
-                        <DropdownMenuItem disabled className="text-gray-400">Loading tags...</DropdownMenuItem>
-                      ) : tagsError ? (
-                        <DropdownMenuItem disabled className="text-red-400">{tagsError}</DropdownMenuItem>
-                      ) : allTags.length > 0 ? (
-                        allTags.map((tag) => (
-                          <DropdownMenuCheckboxItem
-                            key={tag.id}
-                            checked={activeNote?.tags?.some((t) => t.id === tag.id)}
-                            onCheckedChange={() => handleTagToggle(tag)}
-                            className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1] hover:bg-[#4DB6AC]/20"
-                          >
-                            {tag.name}
-                          </DropdownMenuCheckboxItem>
-                        ))
-                      ) : (
-                        <DropdownMenuItem disabled className="text-gray-400">No tags available</DropdownMenuItem>
-                      )}
-                      {/* Add New Tag Section */}
-                      <DropdownMenuSeparator className="bg-[#4DB6AC]" />
-                      <div className="p-2 space-y-2">
-                        <p className="text-xs font-medium text-[#4DB6AC]">Create New Tag</p>
-                        <form onSubmit={handleCreateTag} className="flex items-center gap-2">
-                          <Input 
-                            type="text"
-                            placeholder="New tag name..."
-                            value={newTagName}
-                            onChange={(e) => {
-                              setNewTagName(e.target.value);
-                              setCreateTagError(null); // Clear error on typing
-                            }}
-                            className="h-7 text-xs bg-[#37474F] border-[#4DB6AC]/50 text-[#E0F2F1] focus:ring-teal-500 focus:border-teal-500 placeholder:text-gray-400"
-                          />
-                          <Button 
-                            type="submit"
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs bg-teal-600 hover:bg-teal-700 border-teal-500 text-white disabled:opacity-60"
-                            disabled={isCreatingTag || !newTagName.trim()}
-                          >
-                            {isCreatingTag ? '...' : 'Add'}
-                          </Button>
-                        </form>
-                        {createTagError && <p className="text-xs text-red-400 mt-1">{createTagError}</p>}
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                {tagsError && <p className="text-xs text-red-500 ml-0 mt-1">{tagsError}</p>}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleMethodPanel}>
-                      {selectedMethod ? <selectedMethod.icon className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{showMethodPanel ? "Hide method panel" : "Show method panel"}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              {/* Add AI Review Button here */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 text-[#00796B] hover:text-[#00796B]/80 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB]" 
-                      onClick={handleAIReview}
-                      disabled={isReviewingWithAI || !activeNoteId}
-                    >
-                      {isReviewingWithAI ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Brain className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Review with Gemini AI</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
-                  <DropdownMenuItem
-                    className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
-                    onSelect={() => router.visit('/notepad', { preserveState: true })}
-                  >
-                    No Method
-                  </DropdownMenuItem>
-                  {learningMethods.map((method) => (
-                    <DropdownMenuItem
-                      key={method.id}
-                      className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
-                      onSelect={() => router.visit(`/notepad?method=${method.id}`, { preserveState: true })}
-                    >
-                      <method.icon className={`h-4 w-4 mr-2 ${method.color}`} />
-                      {method.title}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator className="bg-[#4DB6AC]" />
-                  <DropdownMenuItem
-                    className="text-red-500 focus:bg-red-500/20 focus:text-red-400"
-                    onSelect={handleDeleteNote}
-                    disabled={!activeNoteId || isDeleting || isSaving}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {isDeleting ? 'Deleting...' : 'Delete Note'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]"
-                onClick={handleSaveNote}
-                disabled={isSaving}
-              >
-                <Save className={`h-4 w-4 ${isSaving ? "animate-pulse" : ""}`} />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          {/* Content area with optional method panel */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* Note editor */}
-            <div className="flex-1 overflow-auto">
-              <textarea
-                value={noteContent}
-                onChange={(e) => setNoteContent(e.target.value)}
-                placeholder="Start writing..."
-                className="w-full h-full p-4 bg-[#E0F2F1] dark:bg-[#263238] text-[#263238] dark:text-[#E0F2F1] resize-none focus:outline-none"
-              />
-            </div>
-            {/* Method panel */}
-            {showMethodPanel && (
-              <div className="w-80 border-l border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F] flex flex-col">
-                <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30">
-                  <span className="font-medium text-sm text-[#00796B] dark:text-[#4DB6AC]">
-                    {selectedMethod ? selectedMethod.title : "Learning Method"}
-                  </span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleMethodPanel}>
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
+                {/* Main editor area */}
+                <div className="flex flex-1 flex-col overflow-hidden">
+                    {/* Editor toolbar */}
+                    <div className="bg-card flex items-center justify-between border-b p-2">
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleFileExplorer}>
+                                <Menu className="h-4 w-4" />
+                            </Button>
+                            <Input
+                                value={noteTitle}
+                                onChange={(e) => setNoteTitle(e.target.value)}
+                                placeholder="Untitled"
+                                className="h-7 w-48 border-none bg-transparent px-1 font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+                            />
+                            <div className="mt-2 mb-1 flex min-h-[24px] flex-wrap items-center gap-2">
+                                {activeNote && activeNote.tags && activeNote.tags.length > 0
+                                    ? activeNote.tags.map((tag) => (
+                                          <Badge
+                                              key={tag.id}
+                                              variant="outline"
+                                              className={`cursor-default rounded-full border px-2 py-0.5 text-xs ${getTagColor(tag.id)}`}
+                                          >
+                                              {tag.name}
+                                          </Badge>
+                                      ))
+                                    : // Placeholder when no tags or no active note
+                                      activeNoteId && <span className="text-xs text-gray-400 italic">No tags</span>}
+                                {/* Tag Management Dropdown */}
+                                {activeNoteId && ( // Only show button if a note is active
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="ml-2 h-6 w-6 p-0 text-teal-400 hover:text-teal-300 disabled:opacity-50"
+                                                disabled={isLoadingTags || !!tagsError} // Disable if tags are loading/error
+                                            >
+                                                <PlusCircle className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="start" className="w-48 border-[#4DB6AC]/50 bg-[#263238] text-[#E0F2F1]">
+                                            <DropdownMenuLabel className="text-teal-200">Assign Tags</DropdownMenuLabel>
+                                            <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                                            {isLoadingTags ? (
+                                                <DropdownMenuItem disabled>Loading tags...</DropdownMenuItem>
+                                            ) : tagsError ? (
+                                                <DropdownMenuItem disabled className="text-red-400">
+                                                    {tagsError}
+                                                </DropdownMenuItem>
+                                            ) : allTags.length > 0 ? (
+                                                allTags.map((tag) => (
+                                                    <DropdownMenuCheckboxItem
+                                                        key={tag.id}
+                                                        checked={activeNote?.tags?.some((t) => t.id === tag.id)}
+                                                        onCheckedChange={() => handleTagToggle(tag)}
+                                                        className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
+                                                    >
+                                                        {tag.name}
+                                                    </DropdownMenuCheckboxItem>
+                                                ))
+                                            ) : (
+                                                <DropdownMenuItem disabled className="text-gray-400">
+                                                    No tags available
+                                                </DropdownMenuItem>
+                                            )}
+                                            {/* Add New Tag Section */}
+                                            <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                                            <div className="space-y-2 p-2">
+                                                <p className="text-xs font-medium text-teal-200">Create New Tag</p>
+                                                <form onSubmit={handleCreateTag} className="flex items-center gap-2">
+                                                    <Input
+                                                        type="text"
+                                                        placeholder="New tag name..."
+                                                        value={newTagName}
+                                                        onChange={(e) => {
+                                                            setNewTagName(e.target.value);
+                                                            setCreateTagError(null); // Clear error on typing
+                                                        }}
+                                                        className="h-7 border-[#4DB6AC]/50 bg-[#37474F] text-xs text-[#E0F2F1] placeholder:text-gray-400 focus:border-teal-500 focus:ring-teal-500"
+                                                    />
+                                                    <Button
+                                                        type="submit"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-7 border-teal-500 bg-teal-600 px-2 text-xs text-white hover:bg-teal-700 disabled:opacity-60"
+                                                        disabled={isCreatingTag || !newTagName.trim()}
+                                                    >
+                                                        {isCreatingTag ? '...' : 'Add'}
+                                                    </Button>
+                                                </form>
+                                                {createTagError && <p className="mt-1 text-xs text-red-400">{createTagError}</p>}
+                                            </div>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
+                                {tagsError && <p className="mt-1 ml-0 text-xs text-red-500">{tagsError}</p>}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleMethodPanel}>
+                                            <Clock className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {selectedMethod ? selectedMethod.name : 'Method Panel'} - {showMethodPanel ? 'Hide' : 'Show'}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="border-[#4DB6AC]/50 bg-[#263238] text-[#E0F2F1]">
+                                    {/* Add other items like Search toggle, etc. if needed */}
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]">
+                                            <Wand2 className="mr-2 h-4 w-4" /> {/* Use Wand2 icon */}
+                                            <span>Apply Method</span>
+                                        </DropdownMenuSubTrigger>
+                                        <DropdownMenuPortal>
+                                            <DropdownMenuSubContent className="border-[#4DB6AC]/50 bg-[#263238] text-[#E0F2F1]">
+                                                <DropdownMenuItem
+                                                    className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
+                                                    onSelect={() => handleMethodSelect(0)} // Pass 0 for 'No Method'
+                                                >
+                                                    No Method
+                                                </DropdownMenuItem>
+                                                {isLoadingMethods ? (
+                                                    <DropdownMenuItem disabled>Loading methods...</DropdownMenuItem>
+                                                ) : methodsError ? (
+                                                    <DropdownMenuItem disabled className="text-destructive">
+                                                        Error loading methods
+                                                    </DropdownMenuItem>
+                                                ) : (
+                                                    fetchedLearningMethods.map((method) => (
+                                                        <DropdownMenuItem
+                                                            key={method.id}
+                                                            className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
+                                                            onSelect={() => handleMethodSelect(method.id)}
+                                                        >
+                                                            {method.name}
+                                                        </DropdownMenuItem>
+                                                    ))
+                                                )}
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+                                    <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                                    <DropdownMenuItem
+                                        className="text-red-500 focus:bg-red-500/20 focus:text-red-400"
+                                        onSelect={handleDeleteNote}
+                                        disabled={!activeNoteId || isDeleting || isSaving}
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        {isDeleting ? 'Deleting...' : 'Delete Note'}
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveNote} disabled={isSaving}>
+                                <Save className={`h-4 w-4 ${isSaving ? 'animate-pulse' : ''}`} />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                    {/* Tip widget - positioned at the bottom left corner of the screen */}
+                    {showTipWidget && <TipWidget onClose={() => setShowTipWidget(false)} />}
+                    {/* Content area with optional method panel */}
+                    <div className="flex flex-1 overflow-hidden">
+                        {/* Note editor */}
+                        <div className="flex-1 overflow-auto">
+                            <textarea
+                                value={noteContent}
+                                onChange={(e) => setNoteContent(e.target.value)}
+                                placeholder="Start writing..."
+                                className="bg-background h-full w-full resize-none p-4 focus:outline-none"
+                            />
+                        </div>
+                        {/* Method panel */}
+                        {showMethodPanel && (
+                            <div className="bg-card flex w-80 flex-col border-l">
+                                <div className="flex items-center justify-between border-b p-2">
+                                    <span className="text-sm font-medium">{selectedMethod ? selectedMethod.name : 'Learning Method'}</span>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={toggleMethodPanel}>
+                                        <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                                <div className="flex-1 overflow-auto p-2">
+                                    {isLoadingMethods ? (
+                                        <p>Loading methods...</p>
+                                    ) : methodsError ? (
+                                        <p className="text-destructive">Error: {methodsError}</p>
+                                    ) : selectedMethod ? (
+                                        <>
+                                            <h3 className="flex items-center text-lg font-semibold">{selectedMethod.name}</h3>
+                                            <p className="text-muted-foreground text-sm">{selectedMethod.description}</p>
+                                            <div className="border-border mt-4 border-t pt-4">
+                                                <h4 className="mb-2 font-semibold">How to Use:</h4>
+                                                <p className="mb-4 text-sm whitespace-pre-wrap">{selectedMethod.how_to_use}</p>
+                                                {renderMethodComponent()}
+                                            </div>
+                                            {/* Add other method details here if needed */}
+                                        </>
+                                    ) : (
+                                        <p>No learning method selected or applied.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {/* Status bar */}
+                    <div className="text-muted-foreground bg-secondary flex items-center justify-between border-t px-3 py-1 text-xs">
+                        <div>{activeNoteId ? 'Last edited: ' + activeNote?.updated_at : isCreatingNew ? 'New note' : 'No note selected'}</div>
+                        <div>{noteContent.split(/\s+/).filter(Boolean).length} words</div>
+                    </div>
                 </div>
-                <div className="flex-1 overflow-auto p-2">{renderMethodComponent()}</div>
-              </div>
-            )}
-          </div>
-          {/* Status bar */}
-          <div className="flex items-center justify-between px-3 py-1 text-xs text-[#263238] dark:text-[#B2DFDB] border-t border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#00796B]">
-            <div>
-              {activeNoteId
-                ? "Last edited: " + activeNote?.updated_at
-                : isCreatingNew
-                  ? "New note"
-                  : "No note selected"}
             </div>
-            <div>{noteContent.split(/\s+/).filter(Boolean).length} words</div>
-          </div>
         </div>
-      </div>
-
-      {/* AI Review Dialog */}
-      <Dialog open={showAIReviewDialog} onOpenChange={setShowAIReviewDialog}>
-        <DialogContent className="sm:max-w-md bg-[#E0F2F1] dark:bg-[#263238] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[#00796B] dark:text-[#4DB6AC]">
-              <Brain className="h-5 w-5" />
-              Gemini AI Note Review
-            </DialogTitle>
-            <DialogDescription className="text-[#263238]/70 dark:text-[#B2DFDB]">
-              AI-powered analysis of your note's quality and effectiveness.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {aiReviewResult && (
-            <div className="space-y-4 my-2">
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Rating</h3>
-                <div className="p-3 rounded-md bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 text-[#263238] dark:text-[#E0F2F1]">
-                  {aiReviewResult.rating ? `${aiReviewResult.rating}/10` : "No rating available"}
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Feedback</h3>
-                <div className="p-3 rounded-md bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 text-[#263238] dark:text-[#E0F2F1] whitespace-pre-wrap overflow-y-auto max-h-64">
-                  {aiReviewResult.feedback}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {aiReviewError && (
-            <div className="p-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-200 my-2">
-              {aiReviewError}
-            </div>
-          )}
-          
-          <div className="flex justify-end gap-2 mt-4">
-            <Button
-              onClick={() => setShowAIReviewDialog(false)}
-              className="bg-[#00796B] hover:bg-[#00796B]/90 text-[#E0F2F1] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
+    );
 }
