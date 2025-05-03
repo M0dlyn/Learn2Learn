@@ -21,6 +21,7 @@ import {
   MoreHorizontal,
   Trash2,
   PlusCircle, // Icon for adding tags
+  Filter, // Restore Filter icon import
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -150,6 +151,7 @@ export default function NotepadPage() {
   const [showFileExplorer, setShowFileExplorer] = useState(true)
   const [showMethodPanel, setShowMethodPanel] = useState(methodIdNumber > 0)
   const [searchTerm, setSearchTerm] = useState("") // Added search state
+  const [selectedFilterTags, setSelectedFilterTags] = useState<Tag[]>([]); // Restore state for selected filter tags
 
   const selectedMethod = methodIdNumber > 0 ? learningMethods.find((m) => m.id === methodIdNumber) : null
 
@@ -219,9 +221,37 @@ export default function NotepadPage() {
     fetchTags();
   }, []); // Fetch tags once on mount
 
+  // Effect to load note data into editor when activeNoteId changes or notes are loaded
+  useEffect(() => {
+    if (activeNoteId) {
+        const noteToLoad = notes.find(n => n.id === activeNoteId);
+        if (noteToLoad) {
+            setNoteTitle(noteToLoad.title);
+            setNoteContent(noteToLoad.content);
+            setIsCreatingNew(false); // Ensure we are not in 'creating new' mode
+        } else {
+          // Note ID from URL is invalid or not found in loaded notes
+          // Optionally handle this case, e.g., show error or switch to new note view
+          // console.warn(`Note with ID ${activeNoteId} not found.`);
+          // handleNewNote(); // Example: Treat as new note if ID invalid
+        }
+    } else {
+        // If no activeNoteId is set (e.g., navigating to /notepad directly)
+        // ensure we are in the 'new note' state if not already.
+        if (!isCreatingNew) {
+          // Reset fields if not explicitly creating new
+          // handleNewNote(); // Or just reset fields if handleNewNote has side effects we don't want
+           setNoteTitle("Untitled Note");
+           setNoteContent("");
+        }
+    }
+  }, [activeNoteId, notes]); // Rerun when ID changes or notes array updates
+
   // Handler to add/remove a tag from the active note's local state
   const handleTagToggle = (tag: Tag) => {
     if (!activeNoteId) return;
+
+    console.log("handleTagToggle received tag:", JSON.stringify(tag, null, 2)); // Log the received tag object
 
     setNotes((prevNotes: Note[]) => 
       prevNotes.map((note: Note) => { 
@@ -299,6 +329,23 @@ export default function NotepadPage() {
     }
   };
 
+  // Restore Handler to toggle a tag in the filter state
+  const handleFilterTagToggle = (tag: Tag) => {
+    setSelectedFilterTags((prevSelected) => {
+      const isSelected = prevSelected.some(t => t.id === tag.id);
+      if (isSelected) {
+        return prevSelected.filter(t => t.id !== tag.id);
+      } else {
+        return [...prevSelected, tag];
+      }
+    });
+  };
+
+  // Restore Handler to clear all tag filters
+  const clearTagFilters = () => {
+    setSelectedFilterTags([]);
+  };
+
   // --- Event Handlers ---
   const handleSelectNote = useCallback((noteId: number) => {
     const note = notes.find((n) => n.id === noteId) // Use fetched notes
@@ -337,10 +384,21 @@ export default function NotepadPage() {
     setShowMethodPanel((prev) => !prev)
   }
 
-  // Filter notes based on search term
-  const filteredNotes = notes.filter(note =>
-    note.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Restore filtering by search term AND selected tags
+  const filteredNotes = notes.filter(note => {
+    const searchTermLower = searchTerm.toLowerCase();
+    const titleMatch = note.title.toLowerCase().includes(searchTermLower);
+    // Basic content match (consider performance for large notes)
+    // const contentMatch = note.content?.toLowerCase().includes(searchTermLower);
+    const searchMatch = titleMatch; // || contentMatch;
+
+    const tagsMatch = selectedFilterTags.length === 0 ||
+                      selectedFilterTags.every(filterTag =>
+                          note.tags?.some(noteTag => noteTag.id === filterTag.id)
+                      );
+
+    return searchMatch && tagsMatch;
+  });
 
   // Get the full Note object for the active ID
   const activeNote = activeNoteId ? notes.find(n => n.id === activeNoteId) : null;
@@ -357,6 +415,8 @@ export default function NotepadPage() {
       tags: activeNote?.tags?.map(tag => tag.id) || [], // Send array of tag IDs
     }
 
+    console.log("Data being sent to backend:", JSON.stringify(noteData, null, 2)); // Log the data
+
     const csrfToken = await getXsrfToken();
 
     try {
@@ -372,7 +432,7 @@ export default function NotepadPage() {
 
         setNotes((prevNotes) =>
           prevNotes.map((note) =>
-            note.id === activeNoteId ? { ...note, ...savedNote, tags: note.tags } : note // Preserve existing tags for now
+            note.id === activeNoteId ? savedNote : note // Use the complete updated note from the response
           )
         );
 
@@ -539,6 +599,54 @@ export default function NotepadPage() {
                 <Button variant="ghost" size="icon" className="h-6 w-6">
                   <Search className="h-3.5 w-3.5" />
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 relative text-muted-foreground hover:text-foreground">
+                      <Filter className="h-4 w-4" />
+                      {selectedFilterTags.length > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-teal-500 text-xs text-white">
+                          {selectedFilterTags.length}
+                        </span>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-56 bg-[#263238] text-[#E0F2F1] border-[#4DB6AC]/50"
+                  >
+                    <DropdownMenuLabel className="text-teal-200">Filter by Tag</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                    {isLoadingTags ? (
+                      <DropdownMenuItem disabled className="text-gray-400">Loading tags...</DropdownMenuItem>
+                    ) : tagsError ? (
+                      <DropdownMenuItem disabled className="text-red-400">{tagsError}</DropdownMenuItem>
+                    ) : allTags.length > 0 ? (
+                      allTags.map((tag) => (
+                        <DropdownMenuCheckboxItem
+                          key={tag.id}
+                          checked={selectedFilterTags.some(t => t.id === tag.id)}
+                          onCheckedChange={() => handleFilterTagToggle(tag)}
+                          className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
+                        >
+                          {tag.name}
+                        </DropdownMenuCheckboxItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled className="text-gray-400">No tags available</DropdownMenuItem>
+                    )}
+                    {selectedFilterTags.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                        <DropdownMenuItem
+                          onSelect={clearTagFilters}
+                          className="text-red-400 focus:bg-red-900/50 focus:text-red-300"
+                        >
+                          Clear Filters
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewNote}>
                   <Plus className="h-3.5 w-3.5" />
                 </Button>
