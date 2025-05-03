@@ -1,35 +1,31 @@
-import { Link, useLocation } from "react-router-dom"
+import { Link, usePage } from "@inertiajs/react"
 import { Menu } from "lucide-react"
 import Learn2LearnLogo from '@/components/learn2learn-logo';
 import { Button } from "@/components/ui/button"
 import { UserMenuContent } from '@/components/user-menu-content';
-import { usePage } from '@inertiajs/react';
 import { type SharedData } from '@/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export function Navbar() {
-  const { pathname } = useLocation();
+  const { url } = usePage();
   const { auth } = usePage<SharedData>().props;
 
   const isActive = (path: string) => {
-    return pathname === path;
+    return url === path || url.startsWith(path);
   };
 
   return (
     <header className="border-b bg-[#B2DFDB] text-[#263238] dark:bg-[#00796B] dark:text-[#E0F2F1]">
       <div className="w-full flex h-16 p-4 items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-25 w-25 items-center justify-center">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="flex h-28 w-auto items-center justify-center">
               <Learn2LearnLogo mode="auto" className="h-full w-auto object-contain" />
             </div>
           </Link>
@@ -37,7 +33,7 @@ export function Navbar() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             <Link
-              to="/dashboard"
+              href="/dashboard"
               className={`text-sm font-medium transition-colors hover:text-[#4DB6AC] ${
                 isActive("/dashboard") ? "text-[#00796B] dark:text-[#B2DFDB]" : "text-[#263238]/80 dark:text-[#E0F2F1]/80"
               }`}
@@ -45,7 +41,7 @@ export function Navbar() {
               Dashboard
             </Link>
             <Link
-              to="/notepad"
+              href="/notepad"
               className={`text-sm font-medium transition-colors hover:text-[#4DB6AC] ${
                 isActive("/notepad") ? "text-[#00796B] dark:text-[#B2DFDB]" : "text-[#263238]/80 dark:text-[#E0F2F1]/80"
               }`}
@@ -66,15 +62,12 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="left" className="bg-[#E0F2F1] dark:bg-[#263238]">
               <div className="flex flex-col gap-6 py-6">
-                <Link to="/dashboard" className="flex items-center gap-2">
-                  <div className="flex h-25 w-25 items-center justify-center">
-                    <Learn2LearnLogo mode="auto" className="h-full w-auto object-contain" />
-                  </div>
-                  <span className="text-xl font-bold text-[#00796B] dark:text-[#4DB6AC]">LearnSmart</span>
+                <Link href="/dashboard" className="flex items-center gap-2 mb-6">
+                  <Learn2LearnLogo mode="auto" className="h-25 w-auto" />
                 </Link>
                 <nav className="flex flex-col gap-4">
                   <Link
-                    to="/dashboard"
+                    href="/dashboard"
                     className={`text-sm font-medium transition-colors hover:text-[#4DB6AC] ${
                       isActive("/dashboard") ? "text-[#00796B] dark:text-[#B2DFDB]" : "text-[#263238]/80 dark:text-[#E0F2F1]/80"
                     }`}
@@ -82,7 +75,7 @@ export function Navbar() {
                     Dashboard
                   </Link>
                   <Link
-                    to="/notepad"
+                    href="/notepad"
                     className={`text-sm font-medium transition-colors hover:text-[#4DB6AC] ${
                       isActive("/notepad") ? "text-[#00796B] dark:text-[#B2DFDB]" : "text-[#263238]/80 dark:text-[#E0F2F1]/80"
                     }`}

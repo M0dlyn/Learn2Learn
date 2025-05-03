@@ -16,6 +16,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'learningTechnics' => $techniques
         ]);
     })->name('dashboard');
+
+    Route::get('notepad', function () {
+        return Inertia::render('notepad');
+    })->name('notepad');
 });
 
 require __DIR__.'/settings.php';
