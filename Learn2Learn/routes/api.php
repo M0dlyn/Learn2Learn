@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\LearningTechnicController;
+use App\Http\Controllers\Api\NoteRatingController;
 
 Route::middleware('auth:sanctum')->group(function () {
     // Custom Note Routes
@@ -12,6 +13,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notes/tags/{tag}', [NoteController::class, 'getByTag'])->name('notes.getByTag');
     Route::get('/notes/newest', [NoteController::class, 'newest'])->name('notes.newest');
     Route::get('/notes/oldest', [NoteController::class, 'oldest'])->name('notes.oldest');
+    
+    // AI note rating
+    Route::post('/notes/{note}/rate', [NoteRatingController::class, 'rate'])->name('notes.rate');
 
     // Standard API Resource Routes for Notes
     // index: GET /notes
