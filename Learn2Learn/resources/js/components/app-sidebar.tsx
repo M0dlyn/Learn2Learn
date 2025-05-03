@@ -4,53 +4,39 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { FileText, Settings, BookOpen } from 'lucide-react';
 import Learn2LearnLogo from '@/components/learn2learn-logo';
 
+// Main navigation items - Dashboard removed
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
-        href: '/dashboard',
-        icon: LayoutGrid,
+        title: 'Settings',
+        href: '/settings/profile',
+        icon: Settings,
     },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
+// Empty footer items - Repository and Documentation removed
+const footerNavItems: NavItem[] = [];
 
 export function AppSidebar() {
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
+        <Sidebar collapsible="icon" variant="inset" className="bg-[#E0F2F1] text-[#263238] dark:bg-[#263238] dark:text-[#E0F2F1]">
+            <SidebarHeader className="border-b border-[#4DB6AC]/20 dark:border-[#4DB6AC]/10">
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <Link href="/dashboard" prefetch>
-                                <Learn2LearnLogo className="h-35 w-auto object-contain" />
+                                <Learn2LearnLogo className="h-30 w-auto object-contain" />
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="bg-[#E0F2F1] dark:bg-[#263238]">
                 <NavMain items={mainNavItems} />
             </SidebarContent>
-
-            <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
-                <NavUser />
-            </SidebarFooter>
         </Sidebar>
     );
 }
