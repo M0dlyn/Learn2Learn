@@ -138,7 +138,7 @@ export default function DashboardPage() {
 
                     {/* Map over learningTechnics from state */}
                     {!isLoading && !error && (
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full">
+                        <div className="grid gap-6 lg:grid-cols-3 w-full">
                             {learningTechnics.map((technic) => {
                                 const IconComponent = technicIcons[technic.id] || LayoutGrid;
                                 return (
