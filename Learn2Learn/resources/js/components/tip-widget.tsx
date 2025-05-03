@@ -10,7 +10,7 @@ interface Tip {
 
 interface TipWidgetProps {
     onClose?: () => void;
-}
+} 
 
 export function TipWidget({ onClose }: TipWidgetProps) {
     const [currentTip, setCurrentTip] = useState<Tip | null>(null);
