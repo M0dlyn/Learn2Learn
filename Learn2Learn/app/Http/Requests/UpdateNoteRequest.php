@@ -28,7 +28,7 @@ class UpdateNoteRequest extends FormRequest
             'content' => ['sometimes', 'required', 'string'],
             'learning_technic_id' => [
                 'sometimes',
-                'required',
+                'nullable',
                 'integer',
                 Rule::exists('learning_technics', 'id') // Assuming 'learning_technics' table exists
             ],
