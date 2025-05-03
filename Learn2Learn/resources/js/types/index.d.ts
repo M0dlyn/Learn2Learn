@@ -1,10 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 import type { Config } from 'ziggy-js';
 
-export interface Auth {
-    user: User;
-}
-
 export interface BreadcrumbItem {
     title: string;
     href: string;
@@ -22,22 +18,37 @@ export interface NavItem {
     isActive?: boolean;
 }
 
-export interface SharedData {
-    name: string;
-    quote: { message: string; author: string };
-    auth: Auth;
-    ziggy: Config & { location: string };
-    sidebarOpen: boolean;
-    [key: string]: unknown;
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string;
+  email_verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+  [key: string]: unknown; 
+};
+
+export type LearningTechnic = {
+  id: number;
+  name: string;
+  short_desc: string;
+  detailed_desc: string;
+  created_at: string; 
+  updated_at: string; 
+  // Add other fields if they exist and are needed
+};
+
+export interface Auth {
+    user: User;
 }
 
-export interface User {
-    id: number;
-    name: string;
-    email: string;
-    avatar?: string;
-    email_verified_at: string | null;
-    created_at: string;
-    updated_at: string;
-    [key: string]: unknown; // This allows for additional properties...
-}
+export type SharedData = {
+  name: string;
+  quote: { message: string; author: string };
+  auth: Auth;
+  learningTechnics: LearningTechnic[];
+  ziggy: Config & { location: string };
+  sidebarOpen: boolean;
+  [key: string]: unknown;
+};
