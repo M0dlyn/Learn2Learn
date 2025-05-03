@@ -1,10 +1,9 @@
-import { NavFooter } from '@/components/nav-footer';
+
 import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { Sidebar, SidebarContent,SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { FileText, Settings, BookOpen } from 'lucide-react';
+import {Settings} from 'lucide-react';
 import Learn2LearnLogo from '@/components/learn2learn-logo';
 
 // Main navigation items - Dashboard removed
