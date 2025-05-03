@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-// Keep Inertia import if used elsewhere, or update based on Inertia version
+
 import { Inertia } from '@inertiajs/inertia';
 import { usePage } from "@inertiajs/react";
-// Ensure LearningTechnic type is correctly imported from your types file
+
 import { type SharedData, type LearningTechnic } from "@/types";
-import { Clock, FileText, BookMarked, ListTodo, Lightbulb, LayoutGrid } from "lucide-react"; // Keep icons
+import { Clock, FileText, BookMarked, ListTodo, Lightbulb, LayoutGrid } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from '../components/navbar';
@@ -18,18 +18,17 @@ import {
 } from "@/components/ui/dialog";
 
 // Mapping from LearningTechnic ID to Lucide Icon Component
-// *** IMPORTANT: Adjust IDs/Icons below as necessary based on your actual database IDs ***
 const technicIcons: { [key: number]: React.ElementType } = {
-    1: Clock,       // Assuming ID 1 is Pomodoro Technique
-    2: ListTodo,    // Assuming ID 2 is Spaced Repetition
-    3: BookMarked,  // Assuming ID 3 is Feynman Technique
-    4: Lightbulb,   // Assuming ID 4 is Active Recall
-    5: LayoutGrid,  // Assuming ID 5 is Mind Mapping
-    6: FileText,    // Assuming ID 6 is Cornell Method
-    // Add mappings for any other techniques by their database ID
+    1: Clock,       
+    2: ListTodo,    
+    3: BookMarked,  
+    4: Lightbulb,   
+    5: LayoutGrid,  
+    6: FileText,    
 };
 
 export default function DashboardPage() {
+
     // Get auth data from props
     const { auth } = usePage<SharedData>().props;
 
@@ -59,10 +58,10 @@ export default function DashboardPage() {
             setIsLoading(true);
             setError(null);
             try {
-                // Use standard fetch or a library like axios
+                
                 const xsrfToken = getXsrfToken();
                 const headers: HeadersInit = {
-                    'Accept': 'application/json', // Important for API requests
+                    'Accept': 'application/json', 
                 };
                 if (xsrfToken) {
                     headers['X-XSRF-TOKEN'] = xsrfToken;
@@ -79,7 +78,7 @@ export default function DashboardPage() {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                // Assuming the API returns { data: [...] } structure from ResourceCollection
+                
                 setLearningTechnics(data.data || []);
             } catch (err) {
                 console.error("Failed to fetch learning techniques:", err);
@@ -90,22 +89,22 @@ export default function DashboardPage() {
         }
 
         fetchTechniques();
-    }, []); // Empty dependency array means this runs once on mount
+    }, []); 
 
     const handleSelectMethod = (technicId: number) => {
-        // Navigate to the notepad page, passing the selected method ID
+        
         Inertia.visit(`/notepad?method=${technicId}`);
     };
 
-    // Find the full selected technic object for the dialog based on its ID
+    
     const selectedTechnic = selectedTechnicId
         ? learningTechnics.find(tech => tech.id === selectedTechnicId)
         : null;
 
-    // Determine the icon for the selected technic in the dialog
+    
     const SelectedIcon = selectedTechnic && technicIcons[selectedTechnic.id]
         ? technicIcons[selectedTechnic.id]
-        : LayoutGrid; // Provide a default icon if mapping is missing
+        : LayoutGrid; 
 
     return (
         <div className="flex min-h-screen flex-col bg-[#E0F2F1] text-[#263238] dark:bg-[#263238] dark:text-[#E0F2F1]">
@@ -138,7 +137,7 @@ export default function DashboardPage() {
 
                     {/* Map over learningTechnics from state */}
                     {!isLoading && !error && (
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full">
+                        <div className="grid gap-6 lg:grid-cols-3 w-full">
                             {learningTechnics.map((technic) => {
                                 const IconComponent = technicIcons[technic.id] || LayoutGrid;
                                 return (

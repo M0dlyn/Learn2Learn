@@ -9,12 +9,12 @@ import { Label } from "@/components/ui/label"
 
 export function PomodoroTimer() {
   const [mode, setMode] = useState<"focus" | "shortBreak" | "longBreak">("focus")
-  const [timeLeft, setTimeLeft] = useState(25 * 60) // 25 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(25 * 60)
   const [isRunning, setIsRunning] = useState(false)
   const [completedPomodoros, setCompletedPomodoros] = useState(0)
   const [soundEnabled, setSoundEnabled] = useState(true)
 
-  // Set timer based on mode
+ 
   useEffect(() => {
     if (mode === "focus") {
       setTimeLeft(25 * 60)
@@ -26,7 +26,7 @@ export function PomodoroTimer() {
     setIsRunning(false)
   }, [mode])
 
-  // Timer countdown
+
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null
 
@@ -45,12 +45,6 @@ export function PomodoroTimer() {
         }
       } else {
         setMode("focus")
-      }
-
-      // Play sound if enabled
-      if (soundEnabled) {
-        // In a real app, we would play a sound here
-        console.log("Timer finished sound")
       }
     }
 
