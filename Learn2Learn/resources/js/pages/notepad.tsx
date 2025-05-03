@@ -12,7 +12,7 @@ import {
   Hash,
   Clock,
   BookMarked,
-  ListTodo,
+  ListFilter,
   Lightbulb,
   LayoutGrid,
   X,
@@ -22,13 +22,14 @@ import {
   Trash2,
   PlusCircle, // Icon for adding tags
   Filter, // Restore Filter icon import
+  Wand2, // Import the Wand2 icon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PomodoroTimer } from "@/components/pomodoro-timer"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Navbar } from "@/components/navbar"
 import axios from 'axios';
@@ -45,70 +46,52 @@ interface Note {
   id: number;
   title: string;
   content: string;
-  learning_technic_id: number;
+  learning_technic_id: number | null; // Allow null for no method
   tags: Tag[];
   created_at: string;
   updated_at: string;
   // Add other fields if returned by the API and needed, e.g., user_id
 }
 
-// Learning methods data (Keep this for now, could be fetched later)
-const learningMethods = [
-  {
-    id: 1,
-    title: "Pomodoro Technique",
-    description: "Work for 25 minutes, then take a 5-minute break. After 4 cycles, take a longer break.",
-    icon: Clock,
-    color: "text-accent",
-  },
-  {
-    id: 2,
-    title: "Spaced Repetition",
-    description: "Review information at increasing intervals to improve long-term retention.",
-    icon: ListTodo,
-    color: "text-accent",
-  },
-  {
-    id: 3,
-    title: "Feynman Technique",
-    description: "Explain a concept in simple terms to identify gaps in your understanding.",
-    icon: BookMarked,
-    color: "text-accent",
-  },
-  {
-    id: 4,
-    title: "Active Recall",
-    description: "Test yourself on material instead of passively reviewing it.",
-    icon: Lightbulb,
-    color: "text-accent",
-  },
-  {
-    id: 5,
-    title: "Mind Mapping",
-    description: "Create visual diagrams to connect related concepts and ideas.",
-    icon: LayoutGrid,
-    color: "text-accent",
-  },
-  {
-    id: 6,
-    title: "Cornell Method",
-    description: "Divide your page into sections for notes, cues, and summary.",
-    icon: FileText,
-    color: "text-accent",
-  },
-]
+// Define interface for Learning Method data from API
+interface LearningMethod {
+  id: number;
+  name: string; // Changed from title to match API
+  description: string;
+  how_to_use: string; // Add the how_to_use field
+  category?: string; // Optional fields as needed
+  created_at?: string;
+  updated_at?: string;
+}
 
 // Helper function to get CSRF token
-function getXsrfToken() {
+const getXsrfToken = async () => {
+  // Re-implement logic to retrieve XSRF-TOKEN from cookies or wherever it's stored
+  // Example using standard cookie parsing:
   const cookies = document.cookie.split(';');
   for (let cookie of cookies) {
-    const [name, value] = cookie.split('=').map(c => c.trim());
-    if (name === 'XSRF-TOKEN') {
-      return decodeURIComponent(value);
-    }
+      const [name, value] = cookie.split('=').map(c => c.trim());
+      if (name === 'XSRF-TOKEN') {
+          return decodeURIComponent(value);
+      }
   }
+  // Attempt to fetch if not found (common pattern with Laravel Sanctum)
+  try {
+    await axios.get('/sanctum/csrf-cookie');
+    // Retry getting the cookie
+    const updatedCookies = document.cookie.split(';');
+    for (let cookie of updatedCookies) {
+        const [name, value] = cookie.split('=').map(c => c.trim());
+        if (name === 'XSRF-TOKEN') {
+            return decodeURIComponent(value);
+        }
+    }
+  } catch (error) {
+      console.error("Error fetching CSRF cookie:", error);
+  }
+  console.error("XSRF Token not found."); // Add error handling
   return null;
-}
+};
 
 // Helper function to get a consistent color for a tag
 const getTagColor = (tagId: number): string => {
@@ -123,6 +106,43 @@ const getTagColor = (tagId: number): string => {
     'bg-teal-500/20 text-teal-700 border-teal-500/30 hover:bg-teal-500/30',
   ];
   return colors[tagId % colors.length];
+};
+
+// --- Placeholder Components (Define inline for now) ---
+const ActiveRecallDisplay: React.FC = () => (
+  <div className="p-4 border rounded bg-secondary/10 text-secondary-foreground mt-4">
+    <p className="text-sm italic">(Interactive Active Recall Component Placeholder)</p>
+  </div>
+);
+const SpacedRepetitionDisplay: React.FC = () => (
+  <div className="p-4 border rounded bg-secondary/10 text-secondary-foreground mt-4">
+    <p className="text-sm italic">(Interactive Spaced Repetition Component Placeholder)</p>
+  </div>
+);
+const BlurtingDisplay: React.FC = () => (
+  <div className="p-4 border rounded bg-secondary/10 text-secondary-foreground mt-4">
+    <p className="text-sm italic">(Interactive Blurting Method Component Placeholder)</p>
+  </div>
+);
+const HighlightRevisitDisplay: React.FC = () => (
+  <div className="p-4 border rounded bg-secondary/10 text-secondary-foreground mt-4">
+    <p className="text-sm italic">(Interactive Highlight & Revisit Component Placeholder)</p>
+  </div>
+);
+const TwoColumnNotesDisplay: React.FC = () => (
+  <div className="p-4 border rounded bg-secondary/10 text-secondary-foreground mt-4">
+    <p className="text-sm italic">(Interactive Two Column Notes Component Placeholder)</p>
+  </div>
+);
+
+// --- Component Mapping ---
+const techniqueComponentMap: { [key: string]: React.FC } = {
+  'Pomodoro Technique': PomodoroTimer,
+  'Active Recall': ActiveRecallDisplay,
+  'Spaced Repetition': SpacedRepetitionDisplay,
+  'Blurting Method': BlurtingDisplay,
+  'Highlight & Revisit': HighlightRevisitDisplay,
+  'Two Column Notes': TwoColumnNotesDisplay,
 };
 
 export default function NotepadPage() {
@@ -152,8 +172,14 @@ export default function NotepadPage() {
   const [showMethodPanel, setShowMethodPanel] = useState(methodIdNumber > 0)
   const [searchTerm, setSearchTerm] = useState("") // Added search state
   const [selectedFilterTags, setSelectedFilterTags] = useState<Tag[]>([]); // Restore state for selected filter tags
+  const [fetchedLearningMethods, setFetchedLearningMethods] = useState<LearningMethod[]>([]); // Use the new interface
+  const [isLoadingMethods, setIsLoadingMethods] = useState(true); // Loading state for methods
+  const [methodsError, setMethodsError] = useState<string | null>(null); // Error state for methods
 
-  const selectedMethod = methodIdNumber > 0 ? learningMethods.find((m) => m.id === methodIdNumber) : null
+  // Find selected method from fetched data
+  const selectedMethod = methodIdNumber > 0
+    ? fetchedLearningMethods.find((m) => m.id === methodIdNumber)
+    : null;
 
   useEffect(() => {
     // When method changes via URL param, update the UI
@@ -168,7 +194,7 @@ export default function NotepadPage() {
       setIsLoadingNotes(true)
       setNotesError(null)
       try {
-        const xsrfToken = getXsrfToken();
+        const xsrfToken = await getXsrfToken();
         const headers: HeadersInit = {
           'Accept': 'application/json',
         };
@@ -220,6 +246,29 @@ export default function NotepadPage() {
 
     fetchTags();
   }, []); // Fetch tags once on mount
+
+  useEffect(() => {
+    const fetchLearningMethods = async () => {
+      setIsLoadingMethods(true);
+      setMethodsError(null);
+      try {
+        const csrfToken = await getXsrfToken();
+        // Adjust endpoint if needed
+        const response = await axios.get('/api/learning-techniques', {
+          headers: { 'X-XSRF-TOKEN': csrfToken },
+        });
+        console.log('Raw Learning Methods API Response:', response.data); // <-- ADD THIS LOG
+        setFetchedLearningMethods(response.data); // Assuming response.data is an array of LearningMethod
+      } catch (error: any) {
+        console.error("Error fetching learning methods:", error);
+        setMethodsError("Failed to load learning methods.");
+      } finally {
+        setIsLoadingMethods(false);
+      }
+    };
+
+    fetchLearningMethods();
+  }, []); // Fetch methods once on mount
 
   // Effect to load note data into editor when activeNoteId changes or notes are loaded
   useEffect(() => {
@@ -359,9 +408,10 @@ export default function NotepadPage() {
 
       // Update URL based on selected note's method
       const currentMethodId = note.learning_technic_id;
-      if (currentMethodId > 0 && currentMethodId !== methodIdNumber) {
-        router.visit(`/notepad?method=${currentMethodId}`, { preserveState: true })
-      } else if (!currentMethodId && methodIdNumber > 0) { // Use !currentMethodId instead of === 0 for robustness
+      if (currentMethodId && currentMethodId > 0 && currentMethodId !== methodIdNumber) {
+        // If note has a method and it's different from URL param, update URL to match note
+        router.visit(`/notepad?note=${noteId}&method=${currentMethodId}`, { preserveState: true, replace: true });
+      } else if (!currentMethodId && methodIdNumber > 0) {
         router.visit('/notepad', { preserveState: true })
       }
     }
@@ -513,52 +563,34 @@ export default function NotepadPage() {
     }
   };
 
+  const handleMethodSelect = (methodId: number) => {
+    // Update the learning_technic_id for the currently active note in the notes state
+    if (activeNoteId) {
+      setNotes(prevNotes => 
+        prevNotes.map(note => 
+          note.id === activeNoteId 
+            ? { ...note, learning_technic_id: methodId === 0 ? null : methodId } // Set null if methodId is 0 (No Method)
+            : note
+        )
+      );
+      // Mark that changes are pending save? (Optional, depends on desired UX)
+      // setIsDirty(true); 
+    }
+    // Update URL without full reload
+    const newUrl = methodId > 0 ? `/notepad?method=${methodId}${activeNoteId ? '&note=' + activeNoteId : ''}` : `/notepad${activeNoteId ? '?note=' + activeNoteId : ''}`;
+    router.visit(newUrl, { preserveState: true, replace: true });
+  }
+
   const renderMethodComponent = () => {
     if (!methodIdNumber) return null
-
-    switch (methodIdNumber) {
-      case 1: // Pomodoro
-        return <PomodoroTimer />
-      case 2: // Spaced Repetition
-        return (
-          <div className="p-4 bg-card rounded-md">
-            <h3 className="font-medium mb-3">Spaced Repetition Schedule</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>First review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">Today</Badge>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>Second review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">Tomorrow</Badge>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>Third review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">3 days later</Badge>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>Fourth review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">1 week later</Badge>
-              </div>
-              <div className="flex justify-between items-center p-2 bg-secondary rounded-md">
-                <span>Fifth review</span>
-                <Badge className="bg-accent hover:bg-accent/80 text-accent-foreground">2 weeks later</Badge>
-              </div>
-            </div>
-            <Button className="w-full mt-4 bg-accent hover:bg-accent/80 text-accent-foreground">
-              Mark as Reviewed
-            </Button>
-          </div>
-        )
-      // Add other method components as needed
-      default:
-        return (
-          <div className="p-4 bg-card rounded-md">
-            <h3 className="font-medium mb-2">{selectedMethod?.title}</h3>
-            <p className="text-sm">{selectedMethod?.description}</p>
-          </div>
-        )
+ 
+    // Ensure we have a selected method and name before looking up
+    if (!selectedMethod?.name) {
+      return null;
     }
+    // Now it's safe to use selectedMethod.name
+    const TechniqueComponent = techniqueComponentMap[selectedMethod.name];
+    return TechniqueComponent ? <TechniqueComponent /> : null;
   }
 
   return (
@@ -643,7 +675,7 @@ export default function NotepadPage() {
                         <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
                         <DropdownMenuItem
                           onSelect={clearTagFilters}
-                          className="text-red-400 focus:bg-red-900/50 focus:text-red-300"
+                          className="text-red-400 focus:bg-red-500/20 focus:text-red-400"
                         >
                           Clear Filters
                         </DropdownMenuItem>
@@ -730,7 +762,7 @@ export default function NotepadPage() {
                       <DropdownMenuLabel className="text-teal-200">Assign Tags</DropdownMenuLabel>
                       <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
                       {isLoadingTags ? (
-                        <DropdownMenuItem disabled className="text-gray-400">Loading tags...</DropdownMenuItem>
+                        <DropdownMenuItem disabled>Loading tags...</DropdownMenuItem>
                       ) : tagsError ? (
                         <DropdownMenuItem disabled className="text-red-400">{tagsError}</DropdownMenuItem>
                       ) : allTags.length > 0 ? (
@@ -785,10 +817,10 @@ export default function NotepadPage() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleMethodPanel}>
-                      {selectedMethod ? <selectedMethod.icon className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                      <Clock className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{showMethodPanel ? "Hide method panel" : "Show method panel"}</TooltipContent>
+                  <TooltipContent>{selectedMethod ? selectedMethod.name : 'Method Panel'} - {showMethodPanel ? "Hide" : "Show"}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
               <DropdownMenu>
@@ -798,22 +830,36 @@ export default function NotepadPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-[#263238] text-[#E0F2F1] border-[#4DB6AC]/50">
-                  <DropdownMenuItem
-                    className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
-                    onSelect={() => router.visit('/notepad', { preserveState: true })}
-                  >
-                    No Method
-                  </DropdownMenuItem>
-                  {learningMethods.map((method) => (
-                    <DropdownMenuItem
-                      key={method.id}
-                      className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
-                      onSelect={() => router.visit(`/notepad?method=${method.id}`, { preserveState: true })}
-                    >
-                      <method.icon className={`h-4 w-4 mr-2 ${method.color}`} />
-                      {method.title}
-                    </DropdownMenuItem>
-                  ))}
+                  {/* Add other items like Search toggle, etc. if needed */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]">
+                      <Wand2 className="mr-2 h-4 w-4" /> {/* Use Wand2 icon */}
+                      <span>Apply Method</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="bg-[#263238] text-[#E0F2F1] border-[#4DB6AC]/50">
+                        <DropdownMenuItem
+                          className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
+                          onSelect={() => handleMethodSelect(0)} // Pass 0 for 'No Method'
+                        >
+                          No Method
+                        </DropdownMenuItem>
+                        {isLoadingMethods ? (
+                          <DropdownMenuItem disabled>Loading methods...</DropdownMenuItem>
+                        ) : methodsError ? (
+                          <DropdownMenuItem disabled className="text-destructive">Error loading methods</DropdownMenuItem>
+                        ) : (fetchedLearningMethods.map((method) => (
+                          <DropdownMenuItem
+                            key={method.id}
+                            className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
+                            onSelect={() => handleMethodSelect(method.id)}
+                          >
+                            {method.name}
+                          </DropdownMenuItem>
+                        )))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
                   <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
                   <DropdownMenuItem
                     className="text-red-500 focus:bg-red-500/20 focus:text-red-400"
@@ -855,13 +901,34 @@ export default function NotepadPage() {
               <div className="w-80 border-l bg-card flex flex-col">
                 <div className="flex items-center justify-between p-2 border-b">
                   <span className="font-medium text-sm">
-                    {selectedMethod ? selectedMethod.title : "Learning Method"}
+                    {selectedMethod ? selectedMethod.name : "Learning Method"}
                   </span>
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={toggleMethodPanel}>
                     <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <div className="flex-1 overflow-auto p-2">{renderMethodComponent()}</div>
+                <div className="flex-1 overflow-auto p-2">
+                  {isLoadingMethods ? (
+                    <p>Loading methods...</p>
+                  ) : methodsError ? (
+                    <p className="text-destructive">Error: {methodsError}</p>
+                  ) : selectedMethod ? (
+                    <>
+                      <h3 className="text-lg font-semibold flex items-center">
+                        {selectedMethod.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">{selectedMethod.description}</p>
+                      <div className="mt-4 pt-4 border-t border-border">
+                        <h4 className="font-semibold mb-2">How to Use:</h4>
+                        <p className="text-sm whitespace-pre-wrap mb-4">{selectedMethod.how_to_use}</p>
+                        {renderMethodComponent()}
+                      </div>
+                      {/* Add other method details here if needed */}
+                    </>
+                  ) : (
+                    <p>No learning method selected or applied.</p>
+                  )}
+                </div>
               </div>
             )}
           </div>
