@@ -60,4 +60,5 @@ jobs:
       - name: Tests
         run: |
           cd Learn2Learn
-          ./vendor/bin/pest
+          php artisan config:clear
+          php artisan test --parallel --verbose
