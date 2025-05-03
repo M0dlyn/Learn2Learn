@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\TipController;
+use App\Models\LearningTechnic;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -10,7 +11,10 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
+        $techniques = LearningTechnic::orderBy('name')->get();
+        return Inertia::render('dashboard', [
+            'learningTechnics' => $techniques
+        ]);
     })->name('dashboard');
 });
 
