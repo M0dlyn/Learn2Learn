@@ -47,7 +47,6 @@ export type SharedData = {
   name: string;
   quote: { message: string; author: string };
   auth: Auth;
-  learningTechnics: LearningTechnic[];
   ziggy: Config & { location: string };
   sidebarOpen: boolean;
   [key: string]: unknown;
