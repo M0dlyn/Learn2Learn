@@ -251,7 +251,9 @@ export default function NotepadPage() {
   const handleTagToggle = (tag: Tag) => {
     if (!activeNoteId) return;
 
-    console.log("handleTagToggle received tag:", JSON.stringify(tag, null, 2)); // Log the received tag object
+    if (process.env.NODE_ENV === 'development') {
+      console.log("handleTagToggle received tag:", JSON.stringify(tag, null, 2)); // Log the received tag object
+    }
 
     setNotes((prevNotes: Note[]) => 
       prevNotes.map((note: Note) => { 
