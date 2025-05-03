@@ -29,11 +29,19 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        // Retrieve the 'remember' value from the request
+        $remember = $request->boolean('remember');
 
-        $request->session()->regenerate();
+        // Authenticate the user with the 'remember' option
+        if (Auth::attempt($request->only('email', 'password'), $remember)) {
+            $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+            return redirect()->intended(route('dashboard', absolute: false));
+        }
+
+        return back()->withErrors([
+            'email' => 'The provided credentials do not match our records.',
+        ]);
     }
 
     /**
