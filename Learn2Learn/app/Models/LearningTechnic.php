@@ -19,6 +19,7 @@ class LearningTechnic extends Model
         'name',
         'short_desc',
         'detailed_desc',
+        'how_to_use',
     ];
 
     /**
