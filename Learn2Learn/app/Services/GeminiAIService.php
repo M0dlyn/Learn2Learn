@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 class GeminiAIService
 {
     protected $apiKey;
-    protected $apiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+    protected $apiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
     public function __construct()
     {
@@ -42,6 +42,8 @@ class GeminiAIService
                                     - A **numerical rating** (e.g. 7/10)
                                     - A **brief explanation of what was done well**
                                     - A **constructive suggestion for how the note could be improved**
+
+                                    IMPORTANT: Respond with plain text only. Do not use any Markdown formatting in your response.
 
                                     Note Title: {$note->title}
                                     Note Content: {$note->content}"

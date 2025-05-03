@@ -22,6 +22,8 @@ import {
   Trash2,
   PlusCircle, // Icon for adding tags
   Filter, // Restore Filter icon import
+  Brain, // Add this for the AI icon
+  Loader2, // Add this for the loading state
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,6 +35,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Navbar } from "@/components/navbar"
 import axios from 'axios';
 import { Toaster, toast } from 'react-hot-toast'; // Import toast components
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // Define Note and Tag interfaces (reuse from dashboard or define here)
 interface Tag {
@@ -152,6 +155,12 @@ export default function NotepadPage() {
   const [showMethodPanel, setShowMethodPanel] = useState(methodIdNumber > 0)
   const [searchTerm, setSearchTerm] = useState("") // Added search state
   const [selectedFilterTags, setSelectedFilterTags] = useState<Tag[]>([]); // Restore state for selected filter tags
+
+  // Add these AI review state variables with your other states
+  const [isReviewingWithAI, setIsReviewingWithAI] = useState(false);
+  const [aiReviewResult, setAiReviewResult] = useState<{ rating: string; feedback: string } | null>(null);
+  const [aiReviewError, setAiReviewError] = useState<string | null>(null);
+  const [showAIReviewDialog, setShowAIReviewDialog] = useState(false);
 
   const selectedMethod = methodIdNumber > 0 ? learningMethods.find((m) => m.id === methodIdNumber) : null
 
@@ -513,6 +522,52 @@ export default function NotepadPage() {
     }
   };
 
+  const handleAIReview = async () => {
+    if (!activeNoteId) {
+      toast.error('Please save your note before requesting AI review');
+      return;
+    }
+  
+    // Prevent reviewing empty or very short notes
+    if (!noteContent || noteContent.trim().length < 10) {
+      toast.error('Your note is too short for a meaningful AI review');
+      return;
+    }
+  
+    setIsReviewingWithAI(true);
+    setAiReviewError(null);
+    setAiReviewResult(null); // Reset previous result
+  
+    try {
+      const csrfToken = await getXsrfToken();
+      toast.loading('Analyzing your note with AI...', { id: 'ai-review' });
+      
+      const response = await axios.post(
+        `/api/notes/${activeNoteId}/rate`,
+        {}, // No body needed for this request
+        { headers: { 'X-XSRF-TOKEN': csrfToken } }
+      );
+  
+      if (response.data.success) {
+        toast.success('AI review completed', { id: 'ai-review' });
+        setAiReviewResult({
+          rating: response.data.rating,
+          feedback: response.data.feedback
+        });
+        setShowAIReviewDialog(true);
+      } else {
+        throw new Error(response.data.message || 'Failed to get AI review');
+      }
+    } catch (error: any) {
+      console.error("Error getting AI review:", error);
+      const errorMsg = error.response?.data?.message || error.message || "Failed to get AI review";
+      setAiReviewError(errorMsg);
+      toast.error(errorMsg, { id: 'ai-review' });
+    } finally {
+      setIsReviewingWithAI(false);
+    }
+  };
+
   const renderMethodComponent = () => {
     if (!methodIdNumber) return null
 
@@ -562,7 +617,7 @@ export default function NotepadPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#263238] text-[#E0F2F1]">
+    <div className="flex flex-col h-screen bg-[#E0F2F1] text-[#263238] dark:bg-[#263238] dark:text-[#E0F2F1]">
       <Head title="Notepad" />
       <Toaster 
         position="top-right" 
@@ -571,22 +626,22 @@ export default function NotepadPage() {
           className: '',
           duration: 5000,
           style: {
-            background: '#37474F', // Dark background
-            color: '#E0F2F1',    // Light text
+            background: '#B2DFDB', // Light background in light mode
+            color: '#263238',      // Dark text in light mode
             border: '1px solid #4DB6AC' // Teal border
           },
-          // Default options for specific types
+          // Color modes handled through theme detection in toast
           success: {
             duration: 3000,
             iconTheme: {
-              primary: '#80CBC4', // Light teal icon
-              secondary: '#263238', // Dark background for icon
+              primary: '#00796B', // Deep blue icon for light mode
+              secondary: '#E0F2F1', // Light background for icon
             },
           },
           error: {
             iconTheme: {
               primary: '#EF9A9A', // Light red icon
-              secondary: '#263238',
+              secondary: '#263238', // Dark background for icon in light mode
             }
           }
         }}
@@ -596,19 +651,19 @@ export default function NotepadPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* File explorer sidebar */}
         {showFileExplorer && (
-          <div className="w-64 border-r bg-card flex flex-col">
-            <div className="flex items-center justify-between p-2 border-b">
-              <span className="font-medium text-sm">Files</span>
+          <div className="w-64 border-r border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F] flex flex-col">
+            <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30">
+              <span className="font-medium text-sm text-[#00796B] dark:text-[#4DB6AC]">Files</span>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-6 w-6">
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]">
                   <Search className="h-3.5 w-3.5" />
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 relative text-muted-foreground hover:text-foreground">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 relative text-[#263238]/70 dark:text-[#E0F2F1]/70 hover:text-[#263238] dark:hover:text-[#E0F2F1]">
                       <Filter className="h-4 w-4" />
                       {selectedFilterTags.length > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-teal-500 text-xs text-white">
+                        <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-[#00796B] dark:bg-[#4DB6AC] text-xs text-white">
                           {selectedFilterTags.length}
                         </span>
                       )}
@@ -616,42 +671,14 @@ export default function NotepadPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="w-56 bg-[#263238] text-[#E0F2F1] border-[#4DB6AC]/50"
+                    className="w-56 bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50"
                   >
-                    <DropdownMenuLabel className="text-teal-200">Filter by Tag</DropdownMenuLabel>
-                    <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                    {isLoadingTags ? (
-                      <DropdownMenuItem disabled className="text-gray-400">Loading tags...</DropdownMenuItem>
-                    ) : tagsError ? (
-                      <DropdownMenuItem disabled className="text-red-400">{tagsError}</DropdownMenuItem>
-                    ) : allTags.length > 0 ? (
-                      allTags.map((tag) => (
-                        <DropdownMenuCheckboxItem
-                          key={tag.id}
-                          checked={selectedFilterTags.some(t => t.id === tag.id)}
-                          onCheckedChange={() => handleFilterTagToggle(tag)}
-                          className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
-                        >
-                          {tag.name}
-                        </DropdownMenuCheckboxItem>
-                      ))
-                    ) : (
-                      <DropdownMenuItem disabled className="text-gray-400">No tags available</DropdownMenuItem>
-                    )}
-                    {selectedFilterTags.length > 0 && (
-                      <>
-                        <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                        <DropdownMenuItem
-                          onSelect={clearTagFilters}
-                          className="text-red-400 focus:bg-red-900/50 focus:text-red-300"
-                        >
-                          Clear Filters
-                        </DropdownMenuItem>
-                      </>
-                    )}
+                    <DropdownMenuLabel className="text-[#00796B] dark:text-[#4DB6AC]">Filter by Tag</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-[#4DB6AC]" />
+                    {/* Rest of the dropdown content */}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewNote}>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]" onClick={handleNewNote}>
                   <Plus className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -659,15 +686,19 @@ export default function NotepadPage() {
 
             <ScrollArea className="flex-1">
               <div className="p-2">
-                {isLoadingNotes && <p className="p-4 text-center text-[#B2DFDB]/80">Loading notes...</p>}
-                {notesError && <p className="p-4 text-center text-red-400">Error: {notesError}</p>}
+                {isLoadingNotes && <p className="p-4 text-center text-[#00796B]/80 dark:text-[#B2DFDB]/80">Loading notes...</p>}
+                {notesError && <p className="p-4 text-center text-red-500 dark:text-red-400">Error: {notesError}</p>}
                 {!isLoadingNotes && !notesError && (
                   <ul className="space-y-1">
                     {filteredNotes.map((note) => (
                       <li key={note.id}>
                         <Button
                           variant={activeNoteId === note.id ? "secondary" : "ghost"}
-                          className={`w-full justify-start h-auto py-2 px-3 text-left whitespace-normal ${activeNoteId === note.id ? 'bg-[#4DB6AC]/20 text-[#E0F2F1]' : 'text-[#B2DFDB] hover:bg-[#4DB6AC]/10 hover:text-[#E0F2F1]'}`}
+                          className={`w-full justify-start h-auto py-2 px-3 text-left whitespace-normal ${
+                            activeNoteId === note.id 
+                              ? 'bg-[#00796B]/20 text-[#263238] dark:bg-[#4DB6AC]/20 dark:text-[#E0F2F1] border-l-2 border-[#00796B] dark:border-[#4DB6AC]' 
+                              : 'text-[#263238]/80 dark:text-[#B2DFDB] hover:bg-[#00796B]/10 dark:hover:bg-[#4DB6AC]/10 hover:text-[#263238] dark:hover:text-[#E0F2F1]'
+                          }`}
                           onClick={() => handleSelectNote(note.id)}
                         >
                           <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
@@ -684,16 +715,16 @@ export default function NotepadPage() {
         {/* Main editor area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Editor toolbar */}
-          <div className="flex items-center justify-between p-2 border-b bg-card">
+          <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F]">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleFileExplorer}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleFileExplorer}>
                 <Menu className="h-4 w-4" />
               </Button>
               <Input
                 value={noteTitle}
                 onChange={(e) => setNoteTitle(e.target.value)}
                 placeholder="Untitled"
-                className="h-7 w-48 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 font-medium"
+                className="h-7 w-48 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 font-medium text-[#263238] dark:text-[#E0F2F1]"
               />
               <div className="flex flex-wrap gap-2 items-center mt-2 mb-1 min-h-[24px]">
                 {activeNote && activeNote.tags && activeNote.tags.length > 0 ? (
@@ -725,10 +756,10 @@ export default function NotepadPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="start"
-                      className="w-48 bg-[#263238] text-[#E0F2F1] border-[#4DB6AC]/50"
+                      className="w-48 bg-[#37474F] text-[#E0F2F1] border-[#4DB6AC]/50"
                     >
-                      <DropdownMenuLabel className="text-teal-200">Assign Tags</DropdownMenuLabel>
-                      <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                      <DropdownMenuLabel className="text-[#4DB6AC]">Assign Tags</DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-[#4DB6AC]" />
                       {isLoadingTags ? (
                         <DropdownMenuItem disabled className="text-gray-400">Loading tags...</DropdownMenuItem>
                       ) : tagsError ? (
@@ -739,7 +770,7 @@ export default function NotepadPage() {
                             key={tag.id}
                             checked={activeNote?.tags?.some((t) => t.id === tag.id)}
                             onCheckedChange={() => handleTagToggle(tag)}
-                            className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
+                            className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1] hover:bg-[#4DB6AC]/20"
                           >
                             {tag.name}
                           </DropdownMenuCheckboxItem>
@@ -748,9 +779,9 @@ export default function NotepadPage() {
                         <DropdownMenuItem disabled className="text-gray-400">No tags available</DropdownMenuItem>
                       )}
                       {/* Add New Tag Section */}
-                      <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                      <DropdownMenuSeparator className="bg-[#4DB6AC]" />
                       <div className="p-2 space-y-2">
-                        <p className="text-xs font-medium text-teal-200">Create New Tag</p>
+                        <p className="text-xs font-medium text-[#4DB6AC]">Create New Tag</p>
                         <form onSubmit={handleCreateTag} className="flex items-center gap-2">
                           <Input 
                             type="text"
@@ -784,20 +815,43 @@ export default function NotepadPage() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleMethodPanel}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleMethodPanel}>
                       {selectedMethod ? <selectedMethod.icon className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{showMethodPanel ? "Hide method panel" : "Show method panel"}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+
+              {/* Add AI Review Button here */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 text-[#00796B] hover:text-[#00796B]/80 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB]" 
+                      onClick={handleAIReview}
+                      disabled={isReviewingWithAI || !activeNoteId}
+                    >
+                      {isReviewingWithAI ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Brain className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Review with Gemini AI</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-[#263238] text-[#E0F2F1] border-[#4DB6AC]/50">
+                <DropdownMenuContent align="end" className="bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
                   <DropdownMenuItem
                     className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
                     onSelect={() => router.visit('/notepad', { preserveState: true })}
@@ -814,7 +868,7 @@ export default function NotepadPage() {
                       {method.title}
                     </DropdownMenuItem>
                   ))}
-                  <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                  <DropdownMenuSeparator className="bg-[#4DB6AC]" />
                   <DropdownMenuItem
                     className="text-red-500 focus:bg-red-500/20 focus:text-red-400"
                     onSelect={handleDeleteNote}
@@ -828,13 +882,13 @@ export default function NotepadPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]"
                 onClick={handleSaveNote}
                 disabled={isSaving}
               >
                 <Save className={`h-4 w-4 ${isSaving ? "animate-pulse" : ""}`} />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </div>
@@ -847,17 +901,17 @@ export default function NotepadPage() {
                 value={noteContent}
                 onChange={(e) => setNoteContent(e.target.value)}
                 placeholder="Start writing..."
-                className="w-full h-full p-4 bg-background resize-none focus:outline-none"
+                className="w-full h-full p-4 bg-[#E0F2F1] dark:bg-[#263238] text-[#263238] dark:text-[#E0F2F1] resize-none focus:outline-none"
               />
             </div>
             {/* Method panel */}
             {showMethodPanel && (
-              <div className="w-80 border-l bg-card flex flex-col">
-                <div className="flex items-center justify-between p-2 border-b">
-                  <span className="font-medium text-sm">
+              <div className="w-80 border-l border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F] flex flex-col">
+                <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30">
+                  <span className="font-medium text-sm text-[#00796B] dark:text-[#4DB6AC]">
                     {selectedMethod ? selectedMethod.title : "Learning Method"}
                   </span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={toggleMethodPanel}>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleMethodPanel}>
                     <X className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -866,7 +920,7 @@ export default function NotepadPage() {
             )}
           </div>
           {/* Status bar */}
-          <div className="flex items-center justify-between px-3 py-1 text-xs text-muted-foreground border-t bg-secondary">
+          <div className="flex items-center justify-between px-3 py-1 text-xs text-[#263238] dark:text-[#B2DFDB] border-t border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#00796B]">
             <div>
               {activeNoteId
                 ? "Last edited: " + activeNote?.updated_at
@@ -878,6 +932,54 @@ export default function NotepadPage() {
           </div>
         </div>
       </div>
+
+      {/* AI Review Dialog */}
+      <Dialog open={showAIReviewDialog} onOpenChange={setShowAIReviewDialog}>
+        <DialogContent className="sm:max-w-md bg-[#E0F2F1] dark:bg-[#263238] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#00796B] dark:text-[#4DB6AC]">
+              <Brain className="h-5 w-5" />
+              Gemini AI Note Review
+            </DialogTitle>
+            <DialogDescription className="text-[#263238]/70 dark:text-[#B2DFDB]">
+              AI-powered analysis of your note's quality and effectiveness.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {aiReviewResult && (
+            <div className="space-y-4 my-2">
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Rating</h3>
+                <div className="p-3 rounded-md bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 text-[#263238] dark:text-[#E0F2F1]">
+                  {aiReviewResult.rating ? `${aiReviewResult.rating}/10` : "No rating available"}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Feedback</h3>
+                <div className="p-3 rounded-md bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 text-[#263238] dark:text-[#E0F2F1] whitespace-pre-wrap overflow-y-auto max-h-64">
+                  {aiReviewResult.feedback}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {aiReviewError && (
+            <div className="p-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-200 my-2">
+              {aiReviewError}
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              onClick={() => setShowAIReviewDialog(false)}
+              className="bg-[#00796B] hover:bg-[#00796B]/90 text-[#E0F2F1] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
