@@ -16,7 +16,10 @@ Built with a React + TypeScript frontend (styled with Tailwind CSS) and a Larave
 </p>
 
 ## ✅ How to run
-`composer run dev`
+`composer install`
+`npm install`
+`npm run build`
+`php artisan serve`
 
 ## 🚀 Features
 
