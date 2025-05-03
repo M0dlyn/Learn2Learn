@@ -417,7 +417,9 @@ export default function NotepadPage() {
       tags: activeNote?.tags?.map(tag => tag.id) || [], // Send array of tag IDs
     }
 
-    console.log("Data being sent to backend:", JSON.stringify(noteData, null, 2)); // Log the data
+    if (process.env.NODE_ENV === "development") {
+      console.log("Data being sent to backend:", JSON.stringify(noteData, null, 2)); // Log the data
+    }
 
     const csrfToken = await getXsrfToken();
 
