@@ -64,6 +64,7 @@ export default function DashboardPage() {
                 const headers: HeadersInit = {
                     'Accept': 'application/json', // Important for API requests
                 };
+                
                 if (xsrfToken) {
                     headers['X-XSRF-TOKEN'] = xsrfToken;
                 }
@@ -72,12 +73,14 @@ export default function DashboardPage() {
                     credentials: 'include',
                     headers: headers
                 });
+                
                 if (!response.ok) {
                     // Log the response text for more details on error
                     const errorText = await response.text();
                     console.error('API Error Response:', errorText);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                
                 const data = await response.json();
                 // Assuming the API returns { data: [...] } structure from ResourceCollection
                 setLearningTechnics(data.data || []);
