@@ -108,93 +108,112 @@ export default function DashboardPage() {
         : LayoutGrid; // Provide a default icon if mapping is missing
 
     return (
-        <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex min-h-screen flex-col bg-[#E0F2F1] text-[#263238] dark:bg-[#263238] dark:text-[#E0F2F1]">
             <Navbar />
 
-            <main className="flex-1 container py-8 w-full">
-                <div className="pt-8 text-center">
-                    <h1 className="text-3xl font-bold mb-2 text-foreground">Welcome to Learn2Learn, {auth.user.name}</h1>
-                    <p className="text-muted-foreground">Select a learning technique below to get started with your notes.</p>
-                </div>
-
-                {/* Display loading state */}
-                {isLoading && <div className="text-center mt-8">Loading techniques...</div>}
-
-                {/* Display error state */}
-                {error && <div className="text-center mt-8 text-red-500">Error loading techniques: {error}</div>}
-
-                {/* Map over learningTechnics from state (ONLY ONCE) */}
-                {!isLoading && !error && (
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full max-w-screen-xl mt-8">
-                        {learningTechnics.map((technic) => {
-                            // Get the corresponding icon or use a default
-                            const IconComponent = technicIcons[technic.id] || LayoutGrid;
-                            return (
-                                <Card
-                                    key={technic.id}
-                                    className="overflow-hidden hover:shadow-md transition-shadow border-secondary bg-card"
-                                >
-                                    <CardHeader className="pb-2">
-                                        <div className="flex items-center gap-3">
-                                            <div className="rounded-full p-2 bg-secondary text-accent-foreground">
-                                                <IconComponent className="h-8 w-8" />
-                                            </div>
-                                            {/* Use data from state */}
-                                            <CardTitle className="text-lg">{technic.name}</CardTitle>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="pb-2">
-                                        {/* Use short description from state */}
-                                        <CardDescription className="line-clamp-2">{technic.short_desc}</CardDescription>
-                                    </CardContent>
-                                    <CardFooter className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            className="flex-1 border-accent hover:bg-accent hover:text-accent-foreground"
-                                            onClick={() => setSelectedTechnicId(technic.id)} // Set state to open dialog
-                                        >
-                                            Learn More
-                                        </Button>
-                                        <Button
-                                            className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
-                                            onClick={() => handleSelectMethod(technic.id)} // Navigate to notepad
-                                        >
-                                            Use Technique
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
-                            );
-                        })}
+            <div className="flex-1 flex flex-col items-center justify-center py-12">
+                <div className="container px-4 sm:px-6 lg:px-8 max-w-7xl">
+                    <div className="text-center mb-10">
+                        <h1 className="text-3xl font-bold mb-2 text-[#00796B] dark:text-[#4DB6AC]">
+                            Welcome to Learn2Learn, {auth.user.name}
+                        </h1>
+                        <p className="text-[#263238]/80 dark:text-[#E0F2F1]/80">
+                            Select a learning technique below to get started with your notes.
+                        </p>
                     </div>
-                )}
-            </main>
+
+                    {/* Display loading state */}
+                    {isLoading && (
+                        <div className="text-center mt-8 text-[#00796B] dark:text-[#4DB6AC]">
+                            Loading techniques...
+                        </div>
+                    )}
+
+                    {/* Display error state */}
+                    {error && (
+                        <div className="text-center mt-8 text-red-500">
+                            Error loading techniques: {error}
+                        </div>
+                    )}
+
+                    {/* Map over learningTechnics from state */}
+                    {!isLoading && !error && (
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full">
+                            {learningTechnics.map((technic) => {
+                                const IconComponent = technicIcons[technic.id] || LayoutGrid;
+                                return (
+                                    <Card
+                                        key={technic.id}
+                                        className="overflow-hidden hover:shadow-md transition-shadow border-[#4DB6AC]/30 bg-[#B2DFDB]/30 dark:bg-[#263238]/60 dark:border-[#4DB6AC]/20"
+                                    >
+                                        <CardHeader className="pb-2">
+                                            <div className="flex items-center gap-3">
+                                                <div className="rounded-full p-2 bg-[#00796B] text-[#E0F2F1] dark:bg-[#4DB6AC] dark:text-[#263238]">
+                                                    <IconComponent className="h-8 w-8" />
+                                                </div>
+                                                <CardTitle className="text-lg text-[#00796B] dark:text-[#4DB6AC]">
+                                                    {technic.name}
+                                                </CardTitle>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="pb-2">
+                                            <CardDescription className="line-clamp-2 text-[#263238]/80 dark:text-[#E0F2F1]/80">
+                                                {technic.short_desc}
+                                            </CardDescription>
+                                        </CardContent>
+                                        <CardFooter className="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                className="flex-1 border-[#00796B] text-[#00796B] hover:bg-[#4DB6AC]/30 hover:text-[#00796B] dark:border-[#4DB6AC] dark:text-[#4DB6AC] dark:hover:bg-[#00796B]/30 dark:hover:text-[#B2DFDB]"
+                                                onClick={() => setSelectedTechnicId(technic.id)}
+                                            >
+                                                Learn More
+                                            </Button>
+                                            <Button
+                                                className="flex-1 bg-[#00796B] text-[#E0F2F1] hover:bg-[#4DB6AC] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
+                                                onClick={() => handleSelectMethod(technic.id)}
+                                            >
+                                                Use Technique
+                                            </Button>
+                                        </CardFooter>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Dialog for displaying detailed information */}
             <Dialog open={selectedTechnicId !== null} onOpenChange={(open) => !open && setSelectedTechnicId(null)}>
-                <DialogContent className="sm:max-w-md bg-card">
-                    {/* Ensure selectedTechnic is not null before rendering details */}
+                <DialogContent className="sm:max-w-md bg-[#E0F2F1] border-[#4DB6AC]/30 dark:bg-[#263238] dark:border-[#4DB6AC]/20">
                     {selectedTechnic && (
                         <>
                             <DialogHeader className="flex flex-row items-center gap-3">
-                                <div className="rounded-full p-2 bg-secondary text-accent-foreground">
-                                   <SelectedIcon className="h-8 w-8" />
+                                <div className="rounded-full p-2 bg-[#00796B] text-[#E0F2F1] dark:bg-[#4DB6AC] dark:text-[#263238]">
+                                    <SelectedIcon className="h-8 w-8" />
                                 </div>
-                                <DialogTitle>{selectedTechnic.name}</DialogTitle>
+                                <DialogTitle className="text-[#00796B] dark:text-[#4DB6AC]">
+                                    {selectedTechnic.name}
+                                </DialogTitle>
                             </DialogHeader>
-                            {/* Use detailed description from state */}
-                            <DialogDescription className="mt-2 max-h-60 overflow-y-auto">
+                            <DialogDescription className="mt-2 max-h-60 overflow-y-auto text-[#263238]/80 dark:text-[#E0F2F1]/80">
                                 {selectedTechnic.detailed_desc}
                             </DialogDescription>
-                            {/* Note: Benefits are not included as they weren't in the seeder/DB schema */}
-                             <div className="flex justify-end gap-2 mt-4">
+                            <div className="flex justify-end gap-2 mt-4">
                                 <DialogClose asChild>
-                                    <Button variant="outline" className="border-accent">Close</Button>
+                                    <Button 
+                                        variant="outline" 
+                                        className="border-[#00796B] text-[#00796B] hover:bg-[#4DB6AC]/30 hover:text-[#00796B] dark:border-[#4DB6AC] dark:text-[#4DB6AC] dark:hover:bg-[#00796B]/30 dark:hover:text-[#B2DFDB]"
+                                    >
+                                        Close
+                                    </Button>
                                 </DialogClose>
                                 <Button
-                                    className="bg-accent text-accent-foreground hover:bg-accent/90"
+                                    className="bg-[#00796B] text-[#E0F2F1] hover:bg-[#4DB6AC] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
                                     onClick={() => {
-                                        handleSelectMethod(selectedTechnic.id); // Navigate
-                                        setSelectedTechnicId(null); // Close dialog after selection
+                                        handleSelectMethod(selectedTechnic.id);
+                                        setSelectedTechnicId(null);
                                     }}
                                 >
                                     Use This Technique
