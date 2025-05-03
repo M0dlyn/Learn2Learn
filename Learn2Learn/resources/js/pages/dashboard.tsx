@@ -4,7 +4,7 @@ import { Inertia } from '@inertiajs/inertia';
 import { usePage } from "@inertiajs/react";
 // Ensure LearningTechnic type is correctly imported from your types file
 import { type SharedData, type LearningTechnic } from "@/types";
-import { Clock, FileText, BookMarked, ListTodo, Lightbulb, LayoutGrid } from "lucide-react"; // Keep icons
+import { Clock, FileText, BookMarked, ListTodo, Lightbulb, LayoutGrid, Tag as TagIcon } from "lucide-react"; // Keep icons, add TagIcon
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from '../components/navbar';
@@ -29,14 +29,35 @@ const technicIcons: { [key: number]: React.ElementType } = {
     // Add mappings for any other techniques by their database ID
 };
 
+// Define simple interfaces for Note and Tag - ideally move to @/types
+interface Tag {
+    id: number;
+    name: string;
+}
+
+interface Note {
+    id: number;
+    title: string;
+    content: string; 
+    learning_technic_id: number;
+    tags: Tag[];
+    created_at: string;
+    updated_at: string;
+}
+
 export default function DashboardPage() {
     // Get auth data from props
     const { auth } = usePage<SharedData>().props;
 
     // State for storing techniques fetched from API
     const [learningTechnics, setLearningTechnics] = useState<LearningTechnic[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [isLoadingTechnics, setIsLoadingTechnics] = useState(true); // Renamed for clarity
+    const [technicsError, setTechnicsError] = useState<string | null>(null); // Renamed for clarity
+
+    // State for storing notes fetched from API
+    const [notes, setNotes] = useState<Note[]>([]);
+    const [isLoadingNotes, setIsLoadingNotes] = useState(true);
+    const [notesError, setNotesError] = useState<string | null>(null);
 
     // State for the dialog
     const [selectedTechnicId, setSelectedTechnicId] = useState<number | null>(null);
@@ -55,14 +76,14 @@ export default function DashboardPage() {
 
     // Fetch data on component mount
     useEffect(() => {
-        async function fetchTechniques() {
-            setIsLoading(true);
-            setError(null);
+        async function fetchData() {
+            // Fetch Techniques
+            setIsLoadingTechnics(true);
+            setTechnicsError(null);
             try {
-                // Use standard fetch or a library like axios
                 const xsrfToken = getXsrfToken();
                 const headers: HeadersInit = {
-                    'Accept': 'application/json', // Important for API requests
+                    'Accept': 'application/json',
                 };
                 if (xsrfToken) {
                     headers['X-XSRF-TOKEN'] = xsrfToken;
@@ -73,23 +94,53 @@ export default function DashboardPage() {
                     headers: headers
                 });
                 if (!response.ok) {
-                    // Log the response text for more details on error
                     const errorText = await response.text();
-                    console.error('API Error Response:', errorText);
+                    console.error('API Error Response (Techniques):', errorText);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                // Assuming the API returns { data: [...] } structure from ResourceCollection
                 setLearningTechnics(data.data || []);
             } catch (err) {
                 console.error("Failed to fetch learning techniques:", err);
-                setError(err instanceof Error ? err.message : 'An unknown error occurred');
+                setTechnicsError(err instanceof Error ? err.message : 'An unknown error occurred');
             } finally {
-                setIsLoading(false);
+                setIsLoadingTechnics(false);
+            }
+
+            // Fetch Notes
+            setIsLoadingNotes(true);
+            setNotesError(null);
+            try {
+                // Reuse headers and token logic
+                const xsrfToken = getXsrfToken(); // Re-get in case of expiry, though unlikely needed here
+                const headers: HeadersInit = {
+                    'Accept': 'application/json',
+                };
+                if (xsrfToken) {
+                    headers['X-XSRF-TOKEN'] = xsrfToken;
+                }
+
+                const notesResponse = await fetch('/api/notes', { // Fetch notes
+                    credentials: 'include',
+                    headers: headers
+                });
+                if (!notesResponse.ok) {
+                    const errorText = await notesResponse.text();
+                    console.error('API Error Response (Notes):', errorText);
+                    throw new Error(`HTTP error! status: ${notesResponse.status}`);
+                }
+                const notesData = await notesResponse.json();
+                // Assuming the API returns { data: [...] } structure from ResourceCollection
+                setNotes(notesData.data || []);
+            } catch (err) {
+                console.error("Failed to fetch notes:", err);
+                setNotesError(err instanceof Error ? err.message : 'An unknown error occurred');
+            } finally {
+                setIsLoadingNotes(false);
             }
         }
 
-        fetchTechniques();
+        fetchData();
     }, []); // Empty dependency array means this runs once on mount
 
     const handleSelectMethod = (technicId: number) => {
@@ -122,23 +173,23 @@ export default function DashboardPage() {
                         </p>
                     </div>
 
-                    {/* Display loading state */}
-                    {isLoading && (
+                    {/* Display loading state for Techniques */}
+                    {isLoadingTechnics && (
                         <div className="text-center mt-8 text-[#00796B] dark:text-[#4DB6AC]">
                             Loading techniques...
                         </div>
                     )}
 
-                    {/* Display error state */}
-                    {error && (
+                    {/* Display error state for Techniques */}
+                    {technicsError && (
                         <div className="text-center mt-8 text-red-500">
-                            Error loading techniques: {error}
+                            Error loading techniques: {technicsError}
                         </div>
                     )}
 
                     {/* Map over learningTechnics from state */}
-                    {!isLoading && !error && (
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full">
+                    {!isLoadingTechnics && !technicsError && (
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full mb-12"> {/* Added margin-bottom */} 
                             {learningTechnics.map((technic) => {
                                 const IconComponent = technicIcons[technic.id] || LayoutGrid;
                                 return (
@@ -181,6 +232,68 @@ export default function DashboardPage() {
                             })}
                         </div>
                     )}
+
+                    {/* --- Notes Section --- */} 
+                    <div className="w-full mt-12"> {/* Add margin-top */} 
+                        <h2 className="text-2xl font-semibold mb-6 text-center text-[#00796B] dark:text-[#4DB6AC]">
+                            Your Recent Notes
+                        </h2>
+
+                        {/* Display loading state for Notes */} 
+                        {isLoadingNotes && (
+                            <div className="text-center text-[#00796B] dark:text-[#4DB6AC]">
+                                Loading notes...
+                            </div>
+                        )}
+
+                        {/* Display error state for Notes */} 
+                        {notesError && (
+                            <div className="text-center text-red-500">
+                                Error loading notes: {notesError}
+                            </div>
+                        )}
+
+                        {/* Display Notes */} 
+                        {!isLoadingNotes && !notesError && (
+                            notes.length > 0 ? (
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 w-full">
+                                    {notes.map((note) => (
+                                        <Card key={note.id} className="overflow-hidden hover:shadow-md transition-shadow border-[#4DB6AC]/30 bg-white/50 dark:bg-[#263238]/50 dark:border-[#4DB6AC]/20">
+                                            <CardHeader>
+                                                <CardTitle className="text-md text-[#00796B] dark:text-[#4DB6AC]">{note.title}</CardTitle>
+                                                {/* Optional: Display a snippet of content */} 
+                                                {/* <CardDescription className="text-sm line-clamp-2 text-[#263238]/70 dark:text-[#E0F2F1]/70 pt-1">
+                                                    {note.content}
+                                                </CardDescription> */} 
+                                            </CardHeader>
+                                            <CardContent className="pb-3">
+                                                {note.tags && note.tags.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-2">
+                                                        {note.tags.map(tag => (
+                                                            <span key={tag.id} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#4DB6AC]/20 text-[#00796B] dark:bg-[#00796B]/30 dark:text-[#B2DFDB]">
+                                                                <TagIcon className="h-3 w-3 mr-1" />
+                                                                {tag.name}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                            {/* Add CardFooter for actions later (Edit/Delete) */} 
+                                            {/* <CardFooter className="flex justify-end gap-2">
+                                                <Button size="sm" variant="ghost">Edit</Button>
+                                                <Button size="sm" variant="destructive">Delete</Button>
+                                            </CardFooter> */} 
+                                        </Card>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-center text-[#263238]/70 dark:text-[#E0F2F1]/70">
+                                    You haven't created any notes yet.
+                                </p>
+                            )
+                        )}
+                    </div>
+                    {/* --- End Notes Section --- */} 
                 </div>
             </div>
 
@@ -197,7 +310,7 @@ export default function DashboardPage() {
                                     {selectedTechnic.name}
                                 </DialogTitle>
                             </DialogHeader>
-                            <DialogDescription className="mt-2 max-h-60 overflow-y-auto text-[#263238]/80 dark:text-[#E0F2F1]/80">
+                            <DialogDescription className="mt-2 max-h-60 overflow-y-auto text-[#263238]/80 dark:text-[#E0F2F1]/80 whitespace-pre-wrap"> {/* Added whitespace-pre-wrap */} 
                                 {selectedTechnic.detailed_desc}
                             </DialogDescription>
                             <div className="flex justify-end gap-2 mt-4">

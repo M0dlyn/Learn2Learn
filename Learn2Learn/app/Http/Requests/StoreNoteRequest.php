@@ -27,7 +27,7 @@ class StoreNoteRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
             'learning_technic_id' => [
-                'required',
+                'nullable', // Allow null value
                 'integer',
                 Rule::exists('learning_technics', 'id') // Assuming 'learning_technics' table exists
             ],
