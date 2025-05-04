@@ -37,7 +37,10 @@ import {
     Trash2, // Restore Filter icon import
     Wand2,
     X,
+    Brain,
+    Loader2
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useCallback, useEffect, useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast'; // Import toast components
 
@@ -115,35 +118,65 @@ const getTagColor = (tagId: number): string => {
 };
 
 // --- Placeholder Components (Define inline for now) ---
-const ActiveRecallDisplay: React.FC = () => (
-    <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
-        <p className="text-sm italic">(Interactive Active Recall Component Placeholder)</p>
+const ActiveRecallDisplay: React.FC<{ method?: LearningMethod }> = ({ method }) => (
+    <div className="bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 rounded-md p-4 space-y-4">
+        <h3 className="font-medium text-[#00796B] dark:text-[#4DB6AC] text-lg">{method?.name || "Active Recall"}</h3>
+        
+        {method && (
+            <>
+                <div>
+                    <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">Description</h4>
+                    <p className="text-[#263238] dark:text-[#E0F2F1] text-sm">{method.description}</p>
+                </div>
+                
+                <div>
+                    <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">How to use</h4>
+                    <p className="text-[#263238] dark:text-[#E0F2F1] text-sm whitespace-pre-wrap">{method.how_to_use}</p>
+                </div>
+            </>
+        )}
     </div>
 );
-const SpacedRepetitionDisplay: React.FC = () => (
-    <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
-        <p className="text-sm italic">(Interactive Spaced Repetition Component Placeholder)</p>
+
+const SpacedRepetitionDisplay: React.FC<{ method?: LearningMethod }> = ({ method }) => (
+    <div className="bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 rounded-md p-4 space-y-4">
+        <h3 className="font-medium text-[#00796B] dark:text-[#4DB6AC] text-lg">{method?.name || "Spaced Repetition"}</h3>
+        
+        {method && (
+            <>
+                <div>
+                    <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">Description</h4>
+                    <p className="text-[#263238] dark:text-[#E0F2F1] text-sm">{method.description}</p>
+                </div>
+                
+                <div>
+                    <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">How to use</h4>
+                    <p className="text-[#263238] dark:text-[#E0F2F1] text-sm whitespace-pre-wrap">{method.how_to_use}</p>
+                </div>
+            </>
+        )}
     </div>
 );
-const BlurtingDisplay: React.FC = () => (
+
+const BlurtingDisplay: React.FC<{ method?: LearningMethod }> = ({ method }) => (
     <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
         <p className="text-sm italic">(Interactive Blurting Method Component Placeholder)</p>
     </div>
 );
-const HighlightRevisitDisplay: React.FC = () => (
+const HighlightRevisitDisplay: React.FC<{ method?: LearningMethod }> = ({ method }) => (
     <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
         <p className="text-sm italic">(Interactive Highlight & Revisit Component Placeholder)</p>
     </div>
 );
-const TwoColumnNotesDisplay: React.FC = () => (
+const TwoColumnNotesDisplay: React.FC<{ method?: LearningMethod }> = ({ method }) => (
     <div className="bg-secondary/10 text-secondary-foreground mt-4 rounded border p-4">
         <p className="text-sm italic">(Interactive Two Column Notes Component Placeholder)</p>
     </div>
 );
 
 // --- Component Mapping ---
-const techniqueComponentMap: { [key: string]: React.FC } = {
-    'Pomodoro Technique': PomodoroTimer,
+const techniqueComponentMap: { [key: string]: React.FC<{ method?: LearningMethod }> } = {
+    'Pomodoro Technique': PomodoroTimer as React.FC<{ method?: LearningMethod }>,
     'Active Recall': ActiveRecallDisplay,
     'Spaced Repetition': SpacedRepetitionDisplay,
     'Blurting Method': BlurtingDisplay,
@@ -182,6 +215,10 @@ export default function NotepadPage() {
     const [isLoadingMethods, setIsLoadingMethods] = useState(true); // Loading state for methods
     const [methodsError, setMethodsError] = useState<string | null>(null); // Error state for methods
     const [showTipWidget, setShowTipWidget] = useState(true); // State to control tip widget visibility
+    const [isReviewingWithAI, setIsReviewingWithAI] = useState(false);
+    const [showAIReviewDialog, setShowAIReviewDialog] = useState(false);
+    const [aiReviewResult, setAiReviewResult] = useState<{ rating?: number | null; feedback: string } | null>(null);
+    const [aiReviewError, setAiReviewError] = useState<string | null>(null);
 
     // Find selected method from fetched data
     const selectedMethod = methodIdNumber > 0 ? fetchedLearningMethods.find((m) => m.id === methodIdNumber) : null;
@@ -263,8 +300,20 @@ export default function NotepadPage() {
                 const response = await axios.get('/api/learning-techniques', {
                     headers: { 'X-XSRF-TOKEN': csrfToken },
                 });
-                console.log('Raw Learning Methods API Response:', response.data); // <-- ADD THIS LOG
-                setFetchedLearningMethods(response.data); // Assuming response.data is an array of LearningMethod
+                console.log('Raw Learning Methods API Response:', response.data);
+                
+                // Check if the response is an array
+                if (Array.isArray(response.data)) {
+                    setFetchedLearningMethods(response.data);
+                    console.log('Learning methods loaded:', response.data.length);
+                } else if (response.data.data && Array.isArray(response.data.data)) {
+                    // If response is wrapped in a data property
+                    setFetchedLearningMethods(response.data.data);
+                    console.log('Learning methods loaded:', response.data.data.length);
+                } else {
+                    console.error('Unexpected API response format:', response.data);
+                    setMethodsError('API returned an unexpected format');
+                }
             } catch (error: any) {
                 console.error('Error fetching learning methods:', error);
                 setMethodsError('Failed to load learning methods.');
@@ -565,40 +614,134 @@ export default function NotepadPage() {
     };
 
     const handleMethodSelect = (methodId: number) => {
+        console.log(`Selecting method ID: ${methodId}`);
+        
         // Update the learning_technic_id for the currently active note in the notes state
         if (activeNoteId) {
-            setNotes((prevNotes) =>
-                prevNotes.map((note) =>
-                    note.id === activeNoteId
-                        ? { ...note, learning_technic_id: methodId === 0 ? null : methodId } // Set null if methodId is 0 (No Method)
-                        : note,
-                ),
-            );
-            // Mark that changes are pending save? (Optional, depends on desired UX)
-            // setIsDirty(true);
+          setNotes((prevNotes) =>
+            prevNotes.map((note) =>
+              note.id === activeNoteId
+                ? { 
+                    ...note, 
+                    learning_technic_id: methodId === 0 ? null : methodId 
+                  }
+                : note,
+            ),
+          );
         }
+        
         // Update URL without full reload
         const newUrl =
-            methodId > 0
-                ? `/notepad?method=${methodId}${activeNoteId ? '&note=' + activeNoteId : ''}`
-                : `/notepad${activeNoteId ? '?note=' + activeNoteId : ''}`;
+          methodId > 0
+            ? `/notepad?method=${methodId}${activeNoteId ? '&note=' + activeNoteId : ''}`
+            : `/notepad${activeNoteId ? '?note=' + activeNoteId : ''}`;
+        
+        console.log(`Navigating to: ${newUrl}`);
         router.visit(newUrl, { preserveState: true, replace: true });
     };
 
+    // Improved method component rendering with fallback for unknown methods
     const renderMethodComponent = () => {
         if (!methodIdNumber) return null;
 
-        // Ensure we have a selected method and name before looking up
-        if (!selectedMethod?.name) {
+        // Ensure we have a selected method
+        if (!selectedMethod) {
             return null;
         }
-        // Now it's safe to use selectedMethod.name
-        const TechniqueComponent = techniqueComponentMap[selectedMethod.name];
-        return TechniqueComponent ? <TechniqueComponent /> : null;
+        
+        console.log("Rendering method:", selectedMethod.name, "with data:", selectedMethod);
+        
+        // Try exact match first
+        let TechniqueComponent = techniqueComponentMap[selectedMethod.name];
+        
+        // If no exact match, try a fuzzy match based on substrings
+        if (!TechniqueComponent) {
+            const methodNameLower = selectedMethod.name.toLowerCase();
+            const matchingKey = Object.keys(techniqueComponentMap).find(key => 
+                key.toLowerCase().includes(methodNameLower) || 
+                methodNameLower.includes(key.toLowerCase())
+            );
+            
+            if (matchingKey) {
+                console.log(`Using component for "${matchingKey}" to display "${selectedMethod.name}"`);
+                TechniqueComponent = techniqueComponentMap[matchingKey];
+            }
+        }
+        
+        // If we found a matching component, use it; otherwise, display a generic info panel
+        if (TechniqueComponent) {
+            return <TechniqueComponent method={selectedMethod} />;
+        } else {
+            // Fallback display for methods without specific components
+            return (
+                <div className="bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 rounded-md p-4 space-y-4">
+                    <h3 className="font-medium text-[#00796B] dark:text-[#4DB6AC] text-lg">{selectedMethod.name}</h3>
+                    
+                    <div>
+                        <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">Description</h4>
+                        <p className="text-[#263238] dark:text-[#E0F2F1] text-sm">{selectedMethod.description}</p>
+                    </div>
+                    
+                    <div>
+                        <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">How to use</h4>
+                        <p className="text-[#263238] dark:text-[#E0F2F1] text-sm whitespace-pre-wrap">
+                            {selectedMethod.how_to_use || "No detailed instructions available."}
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+    };
+
+    // Add with other handler functions
+    const handleAIReview = async () => {
+        if (!activeNoteId) {
+            toast.error('Please save your note before requesting AI review');
+            return;
+        }
+
+        // Prevent reviewing empty or very short notes
+        if (!noteContent || noteContent.trim().length < 10) {
+            toast.error('Your note is too short for a meaningful AI review');
+            return;
+        }
+
+        setIsReviewingWithAI(true);
+        setAiReviewError(null);
+        setAiReviewResult(null); // Reset previous result
+
+        try {
+            const csrfToken = await getXsrfToken();
+            const loadingToast = toast.loading('Analyzing your note with AI...', { id: 'ai-review' });
+
+            const response = await axios.post(
+                `/api/notes/${activeNoteId}/rate`,
+                {}, // No body needed for this request
+                { headers: { 'X-XSRF-TOKEN': csrfToken } }
+            );
+
+            if (response.data.success) {
+                toast.success('AI review completed', { id: 'ai-review' });
+                setAiReviewResult({
+                    rating: response.data.rating, // Should be a number from the PHP service
+                    feedback: response.data.feedback
+                });
+                setShowAIReviewDialog(true);
+            } else {
+                throw new Error(response.data.error || 'Failed to get AI review');
+            }
+        } catch (error: any) {
+            console.error("Error getting AI review:", error);
+            const errorMsg = error.response?.data?.error || error.message || "Failed to get AI review";
+            setAiReviewError(errorMsg);
+            toast.error(errorMsg, { id: 'ai-review' });
+        } finally {
+            setIsReviewingWithAI(false);
+        }
     };
 
     return (
-        <div className="flex h-screen flex-col bg-[#263238] text-[#E0F2F1]">
+        <div className="flex h-screen flex-col bg-[#E0F2F1] text-[#263238] dark:bg-[#263238] dark:text-[#E0F2F1]">
             <Head title="Notepad" />
             <Toaster
                 position="top-right"
@@ -607,22 +750,22 @@ export default function NotepadPage() {
                     className: '',
                     duration: 5000,
                     style: {
-                        background: '#37474F', // Dark background
-                        color: '#E0F2F1', // Light text
-                        border: '1px solid #4DB6AC', // Teal border
+                        background: '#B2DFDB', // Light background in light mode
+                        color: '#263238',      // Dark text in light mode
+                        border: '1px solid #4DB6AC' // Teal border
                     },
-                    // Default options for specific types
+                    // Color modes handled through theme detection in toast
                     success: {
                         duration: 3000,
                         iconTheme: {
-                            primary: '#80CBC4', // Light teal icon
-                            secondary: '#263238', // Dark background for icon
+                            primary: '#00796B', // Deep blue icon for light mode
+                            secondary: '#E0F2F1', // Light background for icon
                         },
                     },
                     error: {
                         iconTheme: {
                             primary: '#EF9A9A', // Light red icon
-                            secondary: '#263238',
+                            secondary: '#263238', // Dark background for icon in light mode
                         },
                     },
                 }}
@@ -632,65 +775,70 @@ export default function NotepadPage() {
             <div className="flex flex-1 overflow-hidden">
                 {/* File explorer sidebar */}
                 {showFileExplorer && (
-                    <div className="bg-card flex w-64 flex-col border-r">
-                        <div className="flex items-center justify-between border-b p-2">
-                            <span className="text-sm font-medium">Files</span>
+                    <div className="w-64 border-r border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F] flex flex-col">
+                        <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30">
+                            <span className="font-medium text-sm text-[#00796B] dark:text-[#4DB6AC]">Files</span>
                             <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]">
                                     <Search className="h-3.5 w-3.5" />
                                 </Button>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground relative h-6 w-6">
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 relative text-[#263238]/70 dark:text-[#E0F2F1]/70 hover:text-[#263238] dark:hover:text-[#E0F2F1]">
                                             <Filter className="h-4 w-4" />
                                             {selectedFilterTags.length > 0 && (
-                                                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-teal-500 text-xs text-white">
+                                                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-[#00796B] dark:bg-[#4DB6AC] text-xs text-white">
                                                     {selectedFilterTags.length}
                                                 </span>
                                             )}
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-56 border-[#4DB6AC]/50 bg-[#263238] text-[#E0F2F1]">
-                                        <DropdownMenuLabel className="text-teal-200">Filter by Tag</DropdownMenuLabel>
+                                    <DropdownMenuContent
+                                        align="end"
+                                        className="w-56 bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50"
+                                    >
+                                        <DropdownMenuLabel className="text-[#00796B] dark:text-[#4DB6AC]">Filter by Tag</DropdownMenuLabel>
                                         <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                                        
                                         {isLoadingTags ? (
-                                            <DropdownMenuItem disabled className="text-gray-400">
-                                                Loading tags...
-                                            </DropdownMenuItem>
+                                            <div className="flex justify-center p-2">
+                                                <Loader2 className="h-4 w-4 animate-spin text-[#00796B] dark:text-[#4DB6AC]" />
+                                            </div>
                                         ) : tagsError ? (
-                                            <DropdownMenuItem disabled className="text-red-400">
-                                                {tagsError}
-                                            </DropdownMenuItem>
-                                        ) : allTags.length > 0 ? (
-                                            allTags.map((tag) => (
-                                                <DropdownMenuCheckboxItem
-                                                    key={tag.id}
-                                                    checked={selectedFilterTags.some((t) => t.id === tag.id)}
-                                                    onCheckedChange={() => handleFilterTagToggle(tag)}
-                                                    className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
-                                                >
-                                                    {tag.name}
-                                                </DropdownMenuCheckboxItem>
-                                            ))
+                                            <p className="text-red-600 dark:text-red-400 text-xs text-center p-2">{tagsError}</p>
+                                        ) : allTags.length === 0 ? (
+                                            <p className="text-[#263238]/60 dark:text-[#E0F2F1]/60 text-xs text-center p-2">No tags available</p>
                                         ) : (
-                                            <DropdownMenuItem disabled className="text-gray-400">
-                                                No tags available
-                                            </DropdownMenuItem>
-                                        )}
-                                        {selectedFilterTags.length > 0 && (
                                             <>
-                                                <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                                                <DropdownMenuItem
-                                                    onSelect={clearTagFilters}
-                                                    className="text-red-400 focus:bg-red-500/20 focus:text-red-400"
-                                                >
-                                                    Clear Filters
-                                                </DropdownMenuItem>
+                                                {allTags.map((tag) => {
+                                                    const isSelected = selectedFilterTags.some(t => t.id === tag.id);
+                                                    return (
+                                                        <DropdownMenuCheckboxItem
+                                                            key={tag.id}
+                                                            checked={isSelected}
+                                                            onCheckedChange={() => handleFilterTagToggle(tag)}
+                                                            className={`${isSelected ? 'bg-[#00796B]/10 dark:bg-[#4DB6AC]/10' : ''}`}
+                                                        >
+                                                            {tag.name}
+                                                        </DropdownMenuCheckboxItem>
+                                                    );
+                                                })}
+                                                {selectedFilterTags.length > 0 && (
+                                                    <>
+                                                        <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                                                        <DropdownMenuItem 
+                                                            onClick={clearTagFilters}
+                                                            className="justify-center text-[#00796B] dark:text-[#4DB6AC] hover:text-[#00796B]/90 dark:hover:text-[#4DB6AC]/90"
+                                                        >
+                                                            Clear Filters
+                                                        </DropdownMenuItem>
+                                                    </>
+                                                )}
                                             </>
                                         )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewNote}>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]" onClick={handleNewNote}>
                                     <Plus className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
@@ -698,19 +846,23 @@ export default function NotepadPage() {
 
                         <ScrollArea className="flex-1">
                             <div className="p-2">
-                                {isLoadingNotes && <p className="p-4 text-center text-[#B2DFDB]/80">Loading notes...</p>}
-                                {notesError && <p className="p-4 text-center text-red-400">Error: {notesError}</p>}
+                                {isLoadingNotes && <p className="p-4 text-center text-[#00796B]/80 dark:text-[#B2DFDB]/80">Loading notes...</p>}
+                                {notesError && <p className="p-4 text-center text-red-500 dark:text-red-400">Error: {notesError}</p>}
                                 {!isLoadingNotes && !notesError && (
                                     <ul className="space-y-1">
                                         {filteredNotes.map((note) => (
                                             <li key={note.id}>
                                                 <Button
-                                                    variant={activeNoteId === note.id ? 'secondary' : 'ghost'}
-                                                    className={`h-auto w-full justify-start px-3 py-2 text-left whitespace-normal ${activeNoteId === note.id ? 'bg-[#4DB6AC]/20 text-[#E0F2F1]' : 'text-[#B2DFDB] hover:bg-[#4DB6AC]/10 hover:text-[#E0F2F1]'}`}
+                                                    variant={activeNoteId === note.id ? "secondary" : "ghost"}
+                                                    className={`w-full justify-start h-auto py-2 px-3 text-left whitespace-normal ${
+                                                        activeNoteId === note.id 
+                                                        ? 'bg-[#00796B]/20 text-[#263238] dark:bg-[#4DB6AC]/20 dark:text-[#E0F2F1] border-l-2 border-[#00796B] dark:border-[#4DB6AC]' 
+                                                        : 'text-[#263238]/80 dark:text-[#B2DFDB] hover:bg-[#00796B]/10 dark:hover:bg-[#4DB6AC]/10 hover:text-[#263238] dark:hover:text-[#E0F2F1]'
+                                                    }`}
                                                     onClick={() => handleSelectNote(note.id)}
                                                 >
-                                                    <FileText className="mr-2 h-4 w-4 flex-shrink-0" />
-                                                    <span className="flex-grow truncate font-medium">{note.title || 'Untitled Note'}</span>
+                                                    <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
+                                                    <span className="flex-grow truncate font-medium">{note.title || "Untitled Note"}</span>
                                                 </Button>
                                             </li>
                                         ))}
@@ -723,106 +875,107 @@ export default function NotepadPage() {
                 {/* Main editor area */}
                 <div className="flex flex-1 flex-col overflow-hidden">
                     {/* Editor toolbar */}
-                    <div className="bg-card flex items-center justify-between border-b p-2">
+                    <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F]">
                         <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleFileExplorer}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleFileExplorer}>
                                 <Menu className="h-4 w-4" />
                             </Button>
                             <Input
                                 value={noteTitle}
                                 onChange={(e) => setNoteTitle(e.target.value)}
                                 placeholder="Untitled"
-                                className="h-7 w-48 border-none bg-transparent px-1 font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+                                className="h-7 w-48 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 font-medium text-[#263238] dark:text-[#E0F2F1]"
                             />
-                            <div className="mt-2 mb-1 flex min-h-[24px] flex-wrap items-center gap-2">
+                            <div className="flex items-center flex-wrap gap-2 mb-1 mt-2 min-h-[24px]">
                                 {activeNote && activeNote.tags && activeNote.tags.length > 0
                                     ? activeNote.tags.map((tag) => (
-                                          <Badge
-                                              key={tag.id}
-                                              variant="outline"
-                                              className={`cursor-default rounded-full border px-2 py-0.5 text-xs ${getTagColor(tag.id)}`}
-                                          >
-                                              {tag.name}
-                                          </Badge>
-                                      ))
-                                    : // Placeholder when no tags or no active note
-                                      activeNoteId && <span className="text-xs text-gray-400 italic">No tags</span>}
+                                        <Badge
+                                            key={tag.id}
+                                            variant="outline"
+                                            className={`rounded-full border px-2 py-0.5 text-xs cursor-default ${getTagColor(tag.id)}`}
+                                        >
+                                            {tag.name}
+                                        </Badge>
+                                    ))
+                                    : activeNoteId && <span className="text-xs italic text-[#263238]/50 dark:text-[#E0F2F1]/50">No tags</span>}
                                 {/* Tag Management Dropdown */}
-                                {activeNoteId && ( // Only show button if a note is active
+                                {activeNoteId && (
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="ml-2 h-6 w-6 p-0 text-teal-400 hover:text-teal-300 disabled:opacity-50"
-                                                disabled={isLoadingTags || !!tagsError} // Disable if tags are loading/error
+                                                className="h-6 w-6 p-0 ml-2 text-[#00796B] hover:text-[#00796B]/80 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB] disabled:opacity-50"
+                                                disabled={isLoadingTags || !!tagsError}
                                             >
                                                 <PlusCircle className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="start" className="w-48 border-[#4DB6AC]/50 bg-[#263238] text-[#E0F2F1]">
-                                            <DropdownMenuLabel className="text-teal-200">Assign Tags</DropdownMenuLabel>
+                                        <DropdownMenuContent className="bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
+                                            <DropdownMenuLabel className="text-[#00796B] dark:text-[#4DB6AC]">Manage Tags</DropdownMenuLabel>
                                             <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                                            {isLoadingTags ? (
-                                                <DropdownMenuItem disabled>Loading tags...</DropdownMenuItem>
-                                            ) : tagsError ? (
-                                                <DropdownMenuItem disabled className="text-red-400">
-                                                    {tagsError}
-                                                </DropdownMenuItem>
-                                            ) : allTags.length > 0 ? (
-                                                allTags.map((tag) => (
+                                            
+                                            {/* Add Tag form */}
+                                            <form onSubmit={handleCreateTag} className="p-2">
+                                                <div className="flex gap-2 mb-2">
+                                                <Input 
+                                                    placeholder="New tag name" 
+                                                    value={newTagName} 
+                                                    onChange={(e) => setNewTagName(e.target.value)} 
+                                                    className="h-7 text-[#263238] dark:text-[#E0F2F1] bg-transparent border-[#4DB6AC]/50"
+                                                />
+                                                <Button 
+                                                    type="submit" 
+                                                    size="sm" 
+                                                    disabled={isCreatingTag || !newTagName.trim()} 
+                                                    className="h-7 bg-[#00796B] hover:bg-[#00796B]/90 text-[#E0F2F1] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
+                                                >
+                                                    {isCreatingTag ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
+                                                </Button>
+                                                </div>
+                                                {createTagError && <p className="text-red-600 dark:text-red-400 text-xs">{createTagError}</p>}
+                                            </form>
+                                            
+                                            <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                                            
+                                            {/* Available tags list */}
+                                            <div className="max-h-48 overflow-y-auto p-1">
+                                                {isLoadingTags ? (
+                                                <div className="flex justify-center p-2">
+                                                    <Loader2 className="h-4 w-4 animate-spin text-[#00796B] dark:text-[#4DB6AC]" />
+                                                </div>
+                                                ) : tagsError ? (
+                                                <p className="text-red-600 dark:text-red-400 text-xs text-center p-2">{tagsError}</p>
+                                                ) : allTags.length === 0 ? (
+                                                <p className="text-[#263238]/60 dark:text-[#E0F2F1]/60 text-xs text-center p-2">No tags available</p>
+                                                ) : (
+                                                allTags.map((tag) => {
+                                                    const isActive = activeNote?.tags?.some((t) => t.id === tag.id);
+                                                    return (
                                                     <DropdownMenuCheckboxItem
                                                         key={tag.id}
-                                                        checked={activeNote?.tags?.some((t) => t.id === tag.id)}
+                                                        checked={isActive}
                                                         onCheckedChange={() => handleTagToggle(tag)}
-                                                        className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
+                                                        className={`${isActive ? 'bg-[#00796B]/10 dark:bg-[#4DB6AC]/10' : ''}`}
                                                     >
                                                         {tag.name}
                                                     </DropdownMenuCheckboxItem>
-                                                ))
-                                            ) : (
-                                                <DropdownMenuItem disabled className="text-gray-400">
-                                                    No tags available
-                                                </DropdownMenuItem>
-                                            )}
-                                            {/* Add New Tag Section */}
-                                            <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                                            <div className="space-y-2 p-2">
-                                                <p className="text-xs font-medium text-teal-200">Create New Tag</p>
-                                                <form onSubmit={handleCreateTag} className="flex items-center gap-2">
-                                                    <Input
-                                                        type="text"
-                                                        placeholder="New tag name..."
-                                                        value={newTagName}
-                                                        onChange={(e) => {
-                                                            setNewTagName(e.target.value);
-                                                            setCreateTagError(null); // Clear error on typing
-                                                        }}
-                                                        className="h-7 border-[#4DB6AC]/50 bg-[#37474F] text-xs text-[#E0F2F1] placeholder:text-gray-400 focus:border-teal-500 focus:ring-teal-500"
-                                                    />
-                                                    <Button
-                                                        type="submit"
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="h-7 border-teal-500 bg-teal-600 px-2 text-xs text-white hover:bg-teal-700 disabled:opacity-60"
-                                                        disabled={isCreatingTag || !newTagName.trim()}
-                                                    >
-                                                        {isCreatingTag ? '...' : 'Add'}
-                                                    </Button>
-                                                </form>
-                                                {createTagError && <p className="mt-1 text-xs text-red-400">{createTagError}</p>}
+                                                    );
+                                                })
+                                                )}
                                             </div>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 )}
-                                {tagsError && <p className="mt-1 ml-0 text-xs text-red-500">{tagsError}</p>}
                             </div>
                         </div>
+                        {/* Toolbar buttons with updated colors */}
                         <div className="flex items-center gap-2">
+                            {/* Method panel toggle button */}
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleMethodPanel}>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleMethodPanel}>
                                             <Clock className="h-4 w-4" />
                                         </Button>
                                     </TooltipTrigger>
@@ -831,118 +984,217 @@ export default function NotepadPage() {
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
+
+                            {/* AI Review Button */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-7 w-7 text-[#00796B] hover:text-[#00796B]/80 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB]" 
+                                            onClick={handleAIReview}
+                                            disabled={isReviewingWithAI || !activeNoteId}
+                                        >
+                                            {isReviewingWithAI ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Brain className="h-4 w-4" />
+                                            )}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-[#E0F2F1] text-[#263238] dark:bg-[#37474F] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
+                                        Review with Gemini AI
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            {/* Learning Method selection dropdown */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-7 w-7 text-[#00796B] hover:text-[#00796B]/80 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB]"
+                                        disabled={!activeNoteId || isLoadingMethods}
+                                    >
+                                        {isLoadingMethods ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Wand2 className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent 
+                                    align="end" 
+                                    className="w-56 bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50"
+                                >
+                                    <DropdownMenuLabel className="text-[#00796B] dark:text-[#4DB6AC]">Learning Method</DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
+                                    
+                                    {isLoadingMethods ? (
+                                    <div className="flex justify-center p-2">
+                                        <Loader2 className="h-4 w-4 animate-spin text-[#00796B] dark:text-[#4DB6AC]" />
+                                    </div>
+                                    ) : methodsError ? (
+                                    <p className="text-red-600 dark:text-red-400 text-xs text-center p-2">{methodsError}</p>
+                                    ) : (
+                                    <>
+                                        <DropdownMenuCheckboxItem
+                                            checked={!methodIdNumber}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) handleMethodSelect(0);
+                                            }}
+                                        >
+                                            None
+                                        </DropdownMenuCheckboxItem>
+                                        {fetchedLearningMethods.map((method) => (
+                                            <DropdownMenuCheckboxItem
+                                                key={method.id}
+                                                checked={methodIdNumber === method.id}
+                                                onCheckedChange={(checked) => {
+                                                    if (checked) handleMethodSelect(method.id);
+                                                }}
+                                                className={`${methodIdNumber === method.id ? 'bg-[#00796B]/10 dark:bg-[#4DB6AC]/10' : ''}`}
+                                            >
+                                                {method.name}
+                                            </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            
+                            {/* Save button */}
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]"
+                                onClick={handleSaveNote}
+                                disabled={isSaving}
+                            >
+                                <Save className={`h-4 w-4 ${isSaving ? "animate-pulse" : ""}`} />
+                            </Button>
+                            
+                            {/* More options dropdown */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]">
                                         <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="border-[#4DB6AC]/50 bg-[#263238] text-[#E0F2F1]">
-                                    {/* Add other items like Search toggle, etc. if needed */}
-                                    <DropdownMenuSub>
-                                        <DropdownMenuSubTrigger className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]">
-                                            <Wand2 className="mr-2 h-4 w-4" /> {/* Use Wand2 icon */}
-                                            <span>Apply Method</span>
-                                        </DropdownMenuSubTrigger>
-                                        <DropdownMenuPortal>
-                                            <DropdownMenuSubContent className="border-[#4DB6AC]/50 bg-[#263238] text-[#E0F2F1]">
-                                                <DropdownMenuItem
-                                                    className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
-                                                    onSelect={() => handleMethodSelect(0)} // Pass 0 for 'No Method'
-                                                >
-                                                    No Method
-                                                </DropdownMenuItem>
-                                                {isLoadingMethods ? (
-                                                    <DropdownMenuItem disabled>Loading methods...</DropdownMenuItem>
-                                                ) : methodsError ? (
-                                                    <DropdownMenuItem disabled className="text-destructive">
-                                                        Error loading methods
-                                                    </DropdownMenuItem>
-                                                ) : (
-                                                    fetchedLearningMethods.map((method) => (
-                                                        <DropdownMenuItem
-                                                            key={method.id}
-                                                            className="focus:bg-[#4DB6AC]/20 focus:text-[#E0F2F1]"
-                                                            onSelect={() => handleMethodSelect(method.id)}
-                                                        >
-                                                            {method.name}
-                                                        </DropdownMenuItem>
-                                                    ))
-                                                )}
-                                            </DropdownMenuSubContent>
-                                        </DropdownMenuPortal>
-                                    </DropdownMenuSub>
-                                    <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                                    <DropdownMenuItem
-                                        className="text-red-500 focus:bg-red-500/20 focus:text-red-400"
-                                        onSelect={handleDeleteNote}
-                                        disabled={!activeNoteId || isDeleting || isSaving}
-                                    >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        {isDeleting ? 'Deleting...' : 'Delete Note'}
-                                    </DropdownMenuItem>
+                                <DropdownMenuContent align="end" className="bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
+                                    {activeNoteId && (
+                                        <DropdownMenuItem 
+                                            className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
+                                            onClick={handleDeleteNote}
+                                            disabled={isDeleting}
+                                        >
+                                            {isDeleting ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                    Deleting...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete Note
+                                                </>
+                                            )}
+                                        </DropdownMenuItem>
+                                    )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveNote} disabled={isSaving}>
-                                <Save className={`h-4 w-4 ${isSaving ? 'animate-pulse' : ''}`} />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
                         </div>
                     </div>
-                    {/* Tip widget - positioned at the bottom left corner of the screen */}
                     {showTipWidget && <TipWidget onClose={() => setShowTipWidget(false)} />}
                     {/* Content area with optional method panel */}
-                    <div className="flex flex-1 overflow-hidden">
+                    <div className="flex-1 flex overflow-hidden">
                         {/* Note editor */}
                         <div className="flex-1 overflow-auto">
                             <textarea
                                 value={noteContent}
                                 onChange={(e) => setNoteContent(e.target.value)}
                                 placeholder="Start writing..."
-                                className="bg-background h-full w-full resize-none p-4 focus:outline-none"
+                                className="w-full h-full p-4 bg-[#E0F2F1] dark:bg-[#263238] text-[#263238] dark:text-[#E0F2F1] resize-none focus:outline-none"
                             />
                         </div>
                         {/* Method panel */}
                         {showMethodPanel && (
-                            <div className="bg-card flex w-80 flex-col border-l">
-                                <div className="flex items-center justify-between border-b p-2">
-                                    <span className="text-sm font-medium">{selectedMethod ? selectedMethod.name : 'Learning Method'}</span>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={toggleMethodPanel}>
+                            <div className="w-80 border-l border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F] flex flex-col">
+                                <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30">
+                                    <span className="font-medium text-sm text-[#00796B] dark:text-[#4DB6AC]">
+                                        {selectedMethod ? selectedMethod.name : "Learning Method"}
+                                    </span>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleMethodPanel}>
                                         <X className="h-3.5 w-3.5" />
                                     </Button>
                                 </div>
-                                <div className="flex-1 overflow-auto p-2">
-                                    {isLoadingMethods ? (
-                                        <p>Loading methods...</p>
-                                    ) : methodsError ? (
-                                        <p className="text-destructive">Error: {methodsError}</p>
-                                    ) : selectedMethod ? (
-                                        <>
-                                            <h3 className="flex items-center text-lg font-semibold">{selectedMethod.name}</h3>
-                                            <p className="text-muted-foreground text-sm">{selectedMethod.description}</p>
-                                            <div className="border-border mt-4 border-t pt-4">
-                                                <h4 className="mb-2 font-semibold">How to Use:</h4>
-                                                <p className="mb-4 text-sm whitespace-pre-wrap">{selectedMethod.how_to_use}</p>
-                                                {renderMethodComponent()}
-                                            </div>
-                                            {/* Add other method details here if needed */}
-                                        </>
-                                    ) : (
-                                        <p>No learning method selected or applied.</p>
-                                    )}
-                                </div>
+                                <div className="flex-1 overflow-auto p-2">{renderMethodComponent()}</div>
                             </div>
                         )}
                     </div>
                     {/* Status bar */}
-                    <div className="text-muted-foreground bg-secondary flex items-center justify-between border-t px-3 py-1 text-xs">
-                        <div>{activeNoteId ? 'Last edited: ' + activeNote?.updated_at : isCreatingNew ? 'New note' : 'No note selected'}</div>
+                    <div className="flex items-center justify-between px-3 py-1 text-xs text-[#263238] dark:text-[#B2DFDB] border-t border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#00796B]">
+                        <div>
+                            {activeNoteId
+                                ? "Last edited: " + activeNote?.updated_at
+                                : isCreatingNew
+                                    ? "New note"
+                                    : "No note selected"}
+                        </div>
                         <div>{noteContent.split(/\s+/).filter(Boolean).length} words</div>
                     </div>
                 </div>
             </div>
+            <Dialog open={showAIReviewDialog} onOpenChange={setShowAIReviewDialog}>
+                <DialogContent className="sm:max-w-md bg-[#E0F2F1] dark:bg-[#263238] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-[#00796B] dark:text-[#4DB6AC]">
+                            <Brain className="h-5 w-5" />
+                            Gemini AI Note Review
+                        </DialogTitle>
+                        <DialogDescription className="text-[#263238]/70 dark:text-[#B2DFDB]/70">
+                            AI-powered analysis of your note's quality and effectiveness.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    {aiReviewResult && (
+                        <div className="space-y-4 my-2">
+                            <div className="space-y-2">
+                                <h3 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Rating</h3>
+                                <div className="p-3 rounded-md bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 text-[#263238] dark:text-[#E0F2F1]">
+                                    {aiReviewResult.rating !== undefined && aiReviewResult.rating !== null 
+                                        ? `${aiReviewResult.rating}/10` 
+                                        : "No rating available"}
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <h3 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Feedback</h3>
+                                <div className="p-3 rounded-md bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 text-[#263238] dark:text-[#E0F2F1] whitespace-pre-wrap overflow-y-auto max-h-64">
+                                    {aiReviewResult.feedback}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {aiReviewError && (
+                        <div className="p-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 my-2">
+                            {aiReviewError}
+                        </div>
+                    )}
+                    
+                    <div className="flex justify-end gap-2 mt-4">
+                        <Button
+                            onClick={() => setShowAIReviewDialog(false)}
+                            className="bg-[#00796B] hover:bg-[#00796B]/90 text-[#E0F2F1] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
+                        >
+                            Close
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
