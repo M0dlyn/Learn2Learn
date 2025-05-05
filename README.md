@@ -1,7 +1,20 @@
 # 📚 Learn to Learn (L2L)
 
-**Learn to Learn (L2L)** is a smart study assistant designed to help users improve the way they study through structured note-taking, proven learning strategies, and smart feedback. The app supports various evidence-based techniques (e.g., Pomodoro, Active Recall, Spaced Repetition) and helps learners apply them through guided exercises. Users can create, organize, and tag their notes — and soon, L2L will analyze these notes using Gemini AI to offer personalized suggestions for improvement.
+# OUR HACKATHON PROJECT
+### Theme: "Where everyday problem meet briliant solution"
+### Team: FreakForce
+### Members: 
+- Mateusz Samborski
+- Jakub Abramek 
+- Maciej Matuszewski
+- Dario Montes
+- Mario Cuéllar
 
+### Project description
+## **Learn to Learn (L2L)**
+The main objective of the project was to provide students with a tool that would help them improve their study habits and techniques, giving them the ability to apply proven learning strategies and techniques in their daily lives and their studies. L2L gives students the ability to create, organize, and tag their notes, and soon, L2L will analyze these notes using Gemini AI to offer personalized suggestions for improvement.
+
+## **Tech Stack**
 Built with a **React + TypeScript frontend**, styled with **Tailwind CSS**, and powered by a **Laravel (PHP) backend** with a **MySQL** database, L2L delivers a responsive and accessible learning experience. Continuous integration and clean architecture ensure it remains scalable and maintainable.
 
 <p align="center">
@@ -27,6 +40,8 @@ npm install
 npm run build
 php artisan serve
 ```
+
+## GitHub Pages deployment comming soon!
 ---
 ## 🚀 Features
 
