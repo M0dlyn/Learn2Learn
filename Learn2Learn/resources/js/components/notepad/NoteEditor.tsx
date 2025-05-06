@@ -12,8 +12,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Brain, Clock, Loader2, Menu, MoreHorizontal, PlusCircle, Save, Trash2, Wand2, X } from 'lucide-react';
-import React from 'react';
+import { Brain, Clock, Eye, EyeOff, Loader2, Menu, MoreHorizontal, PlusCircle, Save, Trash2, Wand2, X } from 'lucide-react';
+import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeSlug from 'rehype-slug';
+import remarkGfm from 'remark-gfm';
 import { LearningMethodDisplay } from './LearningMethods';
 import { LearningMethod, Note, Tag } from './types';
 import { getTagColor } from './utils';
@@ -378,6 +383,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     onCloseTipWidget,
     tagsDropdownProps,
 }) => {
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
+
     return (
         <div className="flex flex-1 flex-col overflow-hidden">
             <NoteToolbar
@@ -405,12 +412,51 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             <div className="flex flex-1 overflow-hidden">
                 {/* Note content editor */}
                 <div className="flex-1 overflow-auto">
-                    <textarea
-                        value={noteContent}
-                        onChange={(e) => onContentChange(e.target.value)}
-                        placeholder="Start writing..."
-                        className="h-full w-full resize-none bg-[#E0F2F1] p-4 text-[#263238] focus:outline-none dark:bg-[#263238] dark:text-[#E0F2F1]"
-                    />
+                    {isPreviewMode ? (
+                        <div className="prose prose-sm dark:prose-invert h-full w-full max-w-none bg-[#E0F2F1] p-4 text-[#263238] dark:bg-[#263238] dark:text-[#E0F2F1]">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                rehypePlugins={[rehypeHighlight, rehypeSlug, [rehypeAutolinkHeadings, { behavior: 'wrap' }]]}
+                                components={{
+                                    // Customize table rendering
+                                    table: ({ children }) => (
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full divide-y divide-[#4DB6AC]">{children}</table>
+                                        </div>
+                                    ),
+                                    // Customize code block rendering
+                                    pre: ({ children }) => (
+                                        <pre className="not-prose overflow-x-auto rounded-lg bg-[#E0F2F1] p-4 dark:bg-[#37474F]">{children}</pre>
+                                    ),
+                                    // Customize inline code rendering
+                                    code: ({ node, inline, className, children, ...props }) => {
+                                        const match = /language-(\w+)/.exec(className || '');
+                                        return !inline ? (
+                                            <code className={className} {...props}>
+                                                {children}
+                                            </code>
+                                        ) : (
+                                            <code
+                                                className="rounded bg-[#E0F2F1] px-1.5 py-0.5 text-[#00796B] dark:bg-[#37474F] dark:text-[#4DB6AC]"
+                                                {...props}
+                                            >
+                                                {children}
+                                            </code>
+                                        );
+                                    },
+                                }}
+                            >
+                                {noteContent}
+                            </ReactMarkdown>
+                        </div>
+                    ) : (
+                        <textarea
+                            value={noteContent}
+                            onChange={(e) => onContentChange(e.target.value)}
+                            placeholder="Start writing... (Markdown supported)"
+                            className="h-full w-full resize-none bg-[#E0F2F1] p-4 text-[#263238] focus:outline-none dark:bg-[#263238] dark:text-[#E0F2F1]"
+                        />
+                    )}
                 </div>
 
                 {/* Method panel */}
@@ -421,7 +467,27 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
             {/* Status bar */}
             <div className="flex items-center justify-between border-t border-[#4DB6AC]/30 bg-[#B2DFDB] px-3 py-1 text-xs text-[#263238] dark:bg-[#00796B] dark:text-[#B2DFDB]">
-                <div>{activeNote?.id ? 'Last edited: ' + activeNote?.updated_at : 'New note'}</div>
+                <div className="flex items-center gap-2">
+                    <span>{activeNote?.id ? 'Last edited: ' + activeNote?.updated_at : 'New note'}</span>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[#263238] hover:text-[#263238]/80 dark:text-[#B2DFDB] dark:hover:text-[#E0F2F1]"
+                        onClick={() => setIsPreviewMode(!isPreviewMode)}
+                    >
+                        {isPreviewMode ? (
+                            <>
+                                <EyeOff className="mr-1 h-3 w-3" />
+                                Edit
+                            </>
+                        ) : (
+                            <>
+                                <Eye className="mr-1 h-3 w-3" />
+                                Preview
+                            </>
+                        )}
+                    </Button>
+                </div>
                 <div>{noteContent.split(/\s+/).filter(Boolean).length} words</div>
             </div>
         </div>
