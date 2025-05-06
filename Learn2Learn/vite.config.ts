@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
+import compression from 'vite-plugin-compression';
 
 export default defineConfig({
     plugins: [
@@ -13,6 +14,13 @@ export default defineConfig({
         }),
         react(),
         tailwindcss(),
+        // Fix compression algorithm type error
+        compression({ algorithm: 'gzip' }),
+        // For Brotli, specify the proper algorithm type
+        compression({
+            algorithm: 'brotliCompress',
+            ext: '.br',
+        }),
     ],
     esbuild: {
         jsx: 'automatic',
