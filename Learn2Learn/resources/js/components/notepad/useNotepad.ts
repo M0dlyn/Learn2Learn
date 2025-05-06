@@ -85,7 +85,26 @@ export const useNotepad = () => {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                setNotes(data.data || []);
+
+                // Convert tag IDs to full tag objects
+                const notesWithFullTags = (data.data || []).map(
+                    (note: {
+                        id: number;
+                        title: string;
+                        content: string;
+                        learning_technic_id: number | null;
+                        tags: number[];
+                        created_at: string;
+                        updated_at: string;
+                    }) => ({
+                        ...note,
+                        tags: (note.tags || [])
+                            .map((tagId: number) => allTags.find((tag) => tag.id === tagId))
+                            .filter((tag): tag is Tag => tag !== undefined),
+                    }),
+                );
+
+                setNotes(notesWithFullTags);
             } catch (err) {
                 console.error('Failed to fetch notes:', err);
                 setNotesError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -94,8 +113,11 @@ export const useNotepad = () => {
             }
         }
 
-        fetchNotes();
-    }, []);
+        // Only fetch notes if we have tags loaded
+        if (allTags.length > 0) {
+            fetchNotes();
+        }
+    }, [allTags]); // Add allTags as a dependency
 
     // Fetch tags
     useEffect(() => {
@@ -304,37 +326,69 @@ export const useNotepad = () => {
         if (!noteTitle.trim()) return;
         setIsSaving(true);
 
+        // Get the current note with updated tags from the notes array
+        const currentNote = notes.find((note) => note.id === activeNoteId);
+        const currentTags = currentNote?.tags || [];
+
+        // Filter out any null or invalid tag IDs
+        const validTagIds = currentTags
+            .filter((tag) => tag && tag.id) // Ensure tag exists and has an id
+            .map((tag) => tag.id);
+
         const noteData = {
             title: noteTitle.trim(),
             content: noteContent,
             learning_technic_id: methodIdNumber === 0 ? null : methodIdNumber,
-            tags: activeNote?.tags?.map((tag) => tag.id) || [],
+            tags: validTagIds,
         };
 
         const csrfToken = await getXsrfToken();
 
         try {
             let response;
-            let savedNote: Note;
+            // Type the response to match the API response structure
+            interface NoteResponse {
+                data: {
+                    id: number;
+                    title: string;
+                    content: string;
+                    learning_technic_id: number | null;
+                    tags: number[];
+                    created_at: string;
+                    updated_at: string;
+                };
+            }
 
             if (activeNoteId) {
                 // Update existing note
-                response = await axios.put(`/api/notes/${activeNoteId}`, noteData, {
+                response = await axios.put<NoteResponse>(`/api/notes/${activeNoteId}`, noteData, {
                     headers: { 'X-XSRF-TOKEN': csrfToken },
                 });
-                savedNote = response.data.data;
+                const savedNote = response.data.data;
 
-                setNotes((prevNotes) => prevNotes.map((note) => (note.id === activeNoteId ? savedNote : note)));
+                // Convert tag IDs to full tag objects
+                const fullTags = savedNote.tags
+                    .map((tagId) => allTags.find((tag) => tag.id === tagId))
+                    .filter((tag): tag is Tag => tag !== undefined);
+
+                // Update the notes state with the saved note and full tag objects
+                setNotes((prevNotes) => prevNotes.map((note) => (note.id === activeNoteId ? { ...savedNote, tags: fullTags } : note)));
 
                 toast.success('Note updated successfully!');
             } else {
                 // Create new note
-                response = await axios.post('/api/notes', noteData, {
+                response = await axios.post<NoteResponse>('/api/notes', noteData, {
                     headers: { 'X-XSRF-TOKEN': csrfToken },
                 });
-                savedNote = response.data.data;
+                const savedNote = response.data.data;
 
-                setNotes((prevNotes) => [savedNote, ...prevNotes]);
+                // Convert tag IDs to full tag objects
+                const fullTags = savedNote.tags
+                    .map((tagId) => allTags.find((tag) => tag.id === tagId))
+                    .filter((tag): tag is Tag => tag !== undefined);
+
+                // Add the new note to the beginning of the notes array with full tag objects
+                setNotes((prevNotes) => [{ ...savedNote, tags: fullTags }, ...prevNotes]);
                 setActiveNoteId(savedNote.id);
                 setNoteTitle(savedNote.title);
 
