@@ -24,6 +24,7 @@ class LearningTechnicResource extends JsonResource
             'name' => $this->name,
             'short_desc' => $this->short_desc,
             'detailed_desc' => $this->detailed_desc,
+            'how_to_use' => $this->how_to_use,
             'created_at' => $this->created_at?->toIso8601String(), 
             'updated_at' => $this->updated_at?->toIso8601String(), 
         ];

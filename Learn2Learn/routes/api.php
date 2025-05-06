@@ -48,8 +48,8 @@ Route::middleware('auth:sanctum')->group(function () {
         'index', 'show'
     ]);
 
-    // Route for fetching learning techniques
-    Route::get('/learning-techniques', [LearningTechniqueController::class, 'index']);
+    // Route for fetching learning techniques (alias for learning-technics)
+    Route::get('/learning-techniques', [LearningTechnicController::class, 'index']);
 
     // You might want to add other API routes here, for example, for the authenticated user:
     // Route::get('/user', function (Request $request) {

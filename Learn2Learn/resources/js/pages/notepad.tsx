@@ -5,17 +5,14 @@ import { PomodoroTimer } from '@/components/pomodoro-timer';
 import { TipWidget } from '@/components/tip-widget'; // Import TipWidget component
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
-    DropdownMenuPortal,
     DropdownMenuSeparator,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -25,9 +22,11 @@ import type { SharedData } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import {
+    Brain,
     Clock,
     FileText, // Icon for adding tags
     Filter,
+    Loader2,
     Menu,
     MoreHorizontal,
     Plus,
@@ -37,10 +36,7 @@ import {
     Trash2, // Restore Filter icon import
     Wand2,
     X,
-    Brain,
-    Loader2
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useCallback, useEffect, useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast'; // Import toast components
 
@@ -65,9 +61,10 @@ interface Note {
 // Define interface for Learning Method data from API
 interface LearningMethod {
     id: number;
-    name: string; // Changed from title to match API
-    description: string;
-    how_to_use: string; // Add the how_to_use field
+    name: string;
+    short_desc: string;
+    detailed_desc: string;
+    how_to_use: string;
     category?: string; // Optional fields as needed
     created_at?: string;
     updated_at?: string;
@@ -119,19 +116,19 @@ const getTagColor = (tagId: number): string => {
 
 // --- Placeholder Components (Define inline for now) ---
 const ActiveRecallDisplay: React.FC<{ method?: LearningMethod }> = ({ method }) => (
-    <div className="bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 rounded-md p-4 space-y-4">
-        <h3 className="font-medium text-[#00796B] dark:text-[#4DB6AC] text-lg">{method?.name || "Active Recall"}</h3>
-        
+    <div className="space-y-4 rounded-md border border-[#4DB6AC]/30 bg-[#4DB6AC]/10 p-4">
+        <h3 className="text-lg font-medium text-[#00796B] dark:text-[#4DB6AC]">{method?.name || 'Active Recall'}</h3>
+
         {method && (
             <>
                 <div>
-                    <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">Description</h4>
-                    <p className="text-[#263238] dark:text-[#E0F2F1] text-sm">{method.description}</p>
+                    <h4 className="mb-1 text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Description</h4>
+                    <p className="text-sm text-[#263238] dark:text-[#E0F2F1]">{method.short_desc}</p>
                 </div>
-                
+
                 <div>
-                    <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">How to use</h4>
-                    <p className="text-[#263238] dark:text-[#E0F2F1] text-sm whitespace-pre-wrap">{method.how_to_use}</p>
+                    <h4 className="mb-1 text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">How to use</h4>
+                    <p className="text-sm whitespace-pre-wrap text-[#263238] dark:text-[#E0F2F1]">{method.how_to_use}</p>
                 </div>
             </>
         )}
@@ -139,19 +136,19 @@ const ActiveRecallDisplay: React.FC<{ method?: LearningMethod }> = ({ method }) 
 );
 
 const SpacedRepetitionDisplay: React.FC<{ method?: LearningMethod }> = ({ method }) => (
-    <div className="bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 rounded-md p-4 space-y-4">
-        <h3 className="font-medium text-[#00796B] dark:text-[#4DB6AC] text-lg">{method?.name || "Spaced Repetition"}</h3>
-        
+    <div className="space-y-4 rounded-md border border-[#4DB6AC]/30 bg-[#4DB6AC]/10 p-4">
+        <h3 className="text-lg font-medium text-[#00796B] dark:text-[#4DB6AC]">{method?.name || 'Spaced Repetition'}</h3>
+
         {method && (
             <>
                 <div>
-                    <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">Description</h4>
-                    <p className="text-[#263238] dark:text-[#E0F2F1] text-sm">{method.description}</p>
+                    <h4 className="mb-1 text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Description</h4>
+                    <p className="text-sm text-[#263238] dark:text-[#E0F2F1]">{method.short_desc}</p>
                 </div>
-                
+
                 <div>
-                    <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">How to use</h4>
-                    <p className="text-[#263238] dark:text-[#E0F2F1] text-sm whitespace-pre-wrap">{method.how_to_use}</p>
+                    <h4 className="mb-1 text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">How to use</h4>
+                    <p className="text-sm whitespace-pre-wrap text-[#263238] dark:text-[#E0F2F1]">{method.how_to_use}</p>
                 </div>
             </>
         )}
@@ -301,7 +298,7 @@ export default function NotepadPage() {
                     headers: { 'X-XSRF-TOKEN': csrfToken },
                 });
                 console.log('Raw Learning Methods API Response:', response.data);
-                
+
                 // Check if the response is an array
                 if (Array.isArray(response.data)) {
                     setFetchedLearningMethods(response.data);
@@ -615,27 +612,27 @@ export default function NotepadPage() {
 
     const handleMethodSelect = (methodId: number) => {
         console.log(`Selecting method ID: ${methodId}`);
-        
+
         // Update the learning_technic_id for the currently active note in the notes state
         if (activeNoteId) {
-          setNotes((prevNotes) =>
-            prevNotes.map((note) =>
-              note.id === activeNoteId
-                ? { 
-                    ...note, 
-                    learning_technic_id: methodId === 0 ? null : methodId 
-                  }
-                : note,
-            ),
-          );
+            setNotes((prevNotes) =>
+                prevNotes.map((note) =>
+                    note.id === activeNoteId
+                        ? {
+                              ...note,
+                              learning_technic_id: methodId === 0 ? null : methodId,
+                          }
+                        : note,
+                ),
+            );
         }
-        
+
         // Update URL without full reload
         const newUrl =
-          methodId > 0
-            ? `/notepad?method=${methodId}${activeNoteId ? '&note=' + activeNoteId : ''}`
-            : `/notepad${activeNoteId ? '?note=' + activeNoteId : ''}`;
-        
+            methodId > 0
+                ? `/notepad?method=${methodId}${activeNoteId ? '&note=' + activeNoteId : ''}`
+                : `/notepad${activeNoteId ? '?note=' + activeNoteId : ''}`;
+
         console.log(`Navigating to: ${newUrl}`);
         router.visit(newUrl, { preserveState: true, replace: true });
     };
@@ -648,44 +645,43 @@ export default function NotepadPage() {
         if (!selectedMethod) {
             return null;
         }
-        
-        console.log("Rendering method:", selectedMethod.name, "with data:", selectedMethod);
-        
+
+        console.log('Rendering method:', selectedMethod.name, 'with data:', selectedMethod);
+
         // Try exact match first
         let TechniqueComponent = techniqueComponentMap[selectedMethod.name];
-        
+
         // If no exact match, try a fuzzy match based on substrings
         if (!TechniqueComponent) {
             const methodNameLower = selectedMethod.name.toLowerCase();
-            const matchingKey = Object.keys(techniqueComponentMap).find(key => 
-                key.toLowerCase().includes(methodNameLower) || 
-                methodNameLower.includes(key.toLowerCase())
+            const matchingKey = Object.keys(techniqueComponentMap).find(
+                (key) => key.toLowerCase().includes(methodNameLower) || methodNameLower.includes(key.toLowerCase()),
             );
-            
+
             if (matchingKey) {
                 console.log(`Using component for "${matchingKey}" to display "${selectedMethod.name}"`);
                 TechniqueComponent = techniqueComponentMap[matchingKey];
             }
         }
-        
+
         // If we found a matching component, use it; otherwise, display a generic info panel
         if (TechniqueComponent) {
             return <TechniqueComponent method={selectedMethod} />;
         } else {
             // Fallback display for methods without specific components
             return (
-                <div className="bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 rounded-md p-4 space-y-4">
-                    <h3 className="font-medium text-[#00796B] dark:text-[#4DB6AC] text-lg">{selectedMethod.name}</h3>
-                    
+                <div className="space-y-4 rounded-md border border-[#4DB6AC]/30 bg-[#4DB6AC]/10 p-4">
+                    <h3 className="text-lg font-medium text-[#00796B] dark:text-[#4DB6AC]">{selectedMethod.name}</h3>
+
                     <div>
-                        <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">Description</h4>
-                        <p className="text-[#263238] dark:text-[#E0F2F1] text-sm">{selectedMethod.description}</p>
+                        <h4 className="mb-1 text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Description</h4>
+                        <p className="text-sm text-[#263238] dark:text-[#E0F2F1]">{selectedMethod.detailed_desc}</p>
                     </div>
-                    
+
                     <div>
-                        <h4 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC] mb-1">How to use</h4>
-                        <p className="text-[#263238] dark:text-[#E0F2F1] text-sm whitespace-pre-wrap">
-                            {selectedMethod.how_to_use || "No detailed instructions available."}
+                        <h4 className="mb-1 text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">How to use</h4>
+                        <p className="text-sm whitespace-pre-wrap text-[#263238] dark:text-[#E0F2F1]">
+                            {selectedMethod.how_to_use || 'No detailed instructions available.'}
                         </p>
                     </div>
                 </div>
@@ -717,22 +713,22 @@ export default function NotepadPage() {
             const response = await axios.post(
                 `/api/notes/${activeNoteId}/rate`,
                 {}, // No body needed for this request
-                { headers: { 'X-XSRF-TOKEN': csrfToken } }
+                { headers: { 'X-XSRF-TOKEN': csrfToken } },
             );
 
             if (response.data.success) {
                 toast.success('AI review completed', { id: 'ai-review' });
                 setAiReviewResult({
                     rating: response.data.rating, // Should be a number from the PHP service
-                    feedback: response.data.feedback
+                    feedback: response.data.feedback,
                 });
                 setShowAIReviewDialog(true);
             } else {
                 throw new Error(response.data.error || 'Failed to get AI review');
             }
         } catch (error: any) {
-            console.error("Error getting AI review:", error);
-            const errorMsg = error.response?.data?.error || error.message || "Failed to get AI review";
+            console.error('Error getting AI review:', error);
+            const errorMsg = error.response?.data?.error || error.message || 'Failed to get AI review';
             setAiReviewError(errorMsg);
             toast.error(errorMsg, { id: 'ai-review' });
         } finally {
@@ -751,8 +747,8 @@ export default function NotepadPage() {
                     duration: 5000,
                     style: {
                         background: '#B2DFDB', // Light background in light mode
-                        color: '#263238',      // Dark text in light mode
-                        border: '1px solid #4DB6AC' // Teal border
+                        color: '#263238', // Dark text in light mode
+                        border: '1px solid #4DB6AC', // Teal border
                     },
                     // Color modes handled through theme detection in toast
                     success: {
@@ -775,19 +771,23 @@ export default function NotepadPage() {
             <div className="flex flex-1 overflow-hidden">
                 {/* File explorer sidebar */}
                 {showFileExplorer && (
-                    <div className="w-64 border-r border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F] flex flex-col">
-                        <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30">
-                            <span className="font-medium text-sm text-[#00796B] dark:text-[#4DB6AC]">Files</span>
+                    <div className="flex w-64 flex-col border-r border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F]">
+                        <div className="flex items-center justify-between border-b border-[#4DB6AC]/30 p-2">
+                            <span className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Files</span>
                             <div className="flex items-center gap-1">
                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]">
                                     <Search className="h-3.5 w-3.5" />
                                 </Button>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 relative text-[#263238]/70 dark:text-[#E0F2F1]/70 hover:text-[#263238] dark:hover:text-[#E0F2F1]">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="relative h-6 w-6 text-[#263238]/70 hover:text-[#263238] dark:text-[#E0F2F1]/70 dark:hover:text-[#E0F2F1]"
+                                        >
                                             <Filter className="h-4 w-4" />
                                             {selectedFilterTags.length > 0 && (
-                                                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-[#00796B] dark:bg-[#4DB6AC] text-xs text-white">
+                                                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-[#00796B] text-xs text-white dark:bg-[#4DB6AC]">
                                                     {selectedFilterTags.length}
                                                 </span>
                                             )}
@@ -795,23 +795,23 @@ export default function NotepadPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent
                                         align="end"
-                                        className="w-56 bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50"
+                                        className="w-56 border-[#4DB6AC]/50 bg-[#E0F2F1] text-[#263238] dark:bg-[#37474F] dark:text-[#E0F2F1]"
                                     >
                                         <DropdownMenuLabel className="text-[#00796B] dark:text-[#4DB6AC]">Filter by Tag</DropdownMenuLabel>
                                         <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                                        
+
                                         {isLoadingTags ? (
                                             <div className="flex justify-center p-2">
                                                 <Loader2 className="h-4 w-4 animate-spin text-[#00796B] dark:text-[#4DB6AC]" />
                                             </div>
                                         ) : tagsError ? (
-                                            <p className="text-red-600 dark:text-red-400 text-xs text-center p-2">{tagsError}</p>
+                                            <p className="p-2 text-center text-xs text-red-600 dark:text-red-400">{tagsError}</p>
                                         ) : allTags.length === 0 ? (
-                                            <p className="text-[#263238]/60 dark:text-[#E0F2F1]/60 text-xs text-center p-2">No tags available</p>
+                                            <p className="p-2 text-center text-xs text-[#263238]/60 dark:text-[#E0F2F1]/60">No tags available</p>
                                         ) : (
                                             <>
                                                 {allTags.map((tag) => {
-                                                    const isSelected = selectedFilterTags.some(t => t.id === tag.id);
+                                                    const isSelected = selectedFilterTags.some((t) => t.id === tag.id);
                                                     return (
                                                         <DropdownMenuCheckboxItem
                                                             key={tag.id}
@@ -826,9 +826,9 @@ export default function NotepadPage() {
                                                 {selectedFilterTags.length > 0 && (
                                                     <>
                                                         <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                                                        <DropdownMenuItem 
+                                                        <DropdownMenuItem
                                                             onClick={clearTagFilters}
-                                                            className="justify-center text-[#00796B] dark:text-[#4DB6AC] hover:text-[#00796B]/90 dark:hover:text-[#4DB6AC]/90"
+                                                            className="justify-center text-[#00796B] hover:text-[#00796B]/90 dark:text-[#4DB6AC] dark:hover:text-[#4DB6AC]/90"
                                                         >
                                                             Clear Filters
                                                         </DropdownMenuItem>
@@ -853,16 +853,16 @@ export default function NotepadPage() {
                                         {filteredNotes.map((note) => (
                                             <li key={note.id}>
                                                 <Button
-                                                    variant={activeNoteId === note.id ? "secondary" : "ghost"}
-                                                    className={`w-full justify-start h-auto py-2 px-3 text-left whitespace-normal ${
-                                                        activeNoteId === note.id 
-                                                        ? 'bg-[#00796B]/20 text-[#263238] dark:bg-[#4DB6AC]/20 dark:text-[#E0F2F1] border-l-2 border-[#00796B] dark:border-[#4DB6AC]' 
-                                                        : 'text-[#263238]/80 dark:text-[#B2DFDB] hover:bg-[#00796B]/10 dark:hover:bg-[#4DB6AC]/10 hover:text-[#263238] dark:hover:text-[#E0F2F1]'
+                                                    variant={activeNoteId === note.id ? 'secondary' : 'ghost'}
+                                                    className={`h-auto w-full justify-start px-3 py-2 text-left whitespace-normal ${
+                                                        activeNoteId === note.id
+                                                            ? 'border-l-2 border-[#00796B] bg-[#00796B]/20 text-[#263238] dark:border-[#4DB6AC] dark:bg-[#4DB6AC]/20 dark:text-[#E0F2F1]'
+                                                            : 'text-[#263238]/80 hover:bg-[#00796B]/10 hover:text-[#263238] dark:text-[#B2DFDB] dark:hover:bg-[#4DB6AC]/10 dark:hover:text-[#E0F2F1]'
                                                     }`}
                                                     onClick={() => handleSelectNote(note.id)}
                                                 >
-                                                    <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
-                                                    <span className="flex-grow truncate font-medium">{note.title || "Untitled Note"}</span>
+                                                    <FileText className="mr-2 h-4 w-4 flex-shrink-0" />
+                                                    <span className="flex-grow truncate font-medium">{note.title || 'Untitled Note'}</span>
                                                 </Button>
                                             </li>
                                         ))}
@@ -875,7 +875,7 @@ export default function NotepadPage() {
                 {/* Main editor area */}
                 <div className="flex flex-1 flex-col overflow-hidden">
                     {/* Editor toolbar */}
-                    <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F]">
+                    <div className="flex items-center justify-between border-b border-[#4DB6AC]/30 bg-[#B2DFDB] p-2 dark:bg-[#37474F]">
                         <div className="flex items-center gap-2">
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleFileExplorer}>
                                 <Menu className="h-4 w-4" />
@@ -884,20 +884,20 @@ export default function NotepadPage() {
                                 value={noteTitle}
                                 onChange={(e) => setNoteTitle(e.target.value)}
                                 placeholder="Untitled"
-                                className="h-7 w-48 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 font-medium text-[#263238] dark:text-[#E0F2F1]"
+                                className="h-7 w-48 border-none bg-transparent px-1 font-medium text-[#263238] focus-visible:ring-0 focus-visible:ring-offset-0 dark:text-[#E0F2F1]"
                             />
-                            <div className="flex items-center flex-wrap gap-2 mb-1 mt-2 min-h-[24px]">
+                            <div className="mt-2 mb-1 flex min-h-[24px] flex-wrap items-center gap-2">
                                 {activeNote && activeNote.tags && activeNote.tags.length > 0
                                     ? activeNote.tags.map((tag) => (
-                                        <Badge
-                                            key={tag.id}
-                                            variant="outline"
-                                            className={`rounded-full border px-2 py-0.5 text-xs cursor-default ${getTagColor(tag.id)}`}
-                                        >
-                                            {tag.name}
-                                        </Badge>
-                                    ))
-                                    : activeNoteId && <span className="text-xs italic text-[#263238]/50 dark:text-[#E0F2F1]/50">No tags</span>}
+                                          <Badge
+                                              key={tag.id}
+                                              variant="outline"
+                                              className={`cursor-default rounded-full border px-2 py-0.5 text-xs ${getTagColor(tag.id)}`}
+                                          >
+                                              {tag.name}
+                                          </Badge>
+                                      ))
+                                    : activeNoteId && <span className="text-xs text-[#263238]/50 italic dark:text-[#E0F2F1]/50">No tags</span>}
                                 {/* Tag Management Dropdown */}
                                 {activeNoteId && (
                                     <DropdownMenu>
@@ -905,63 +905,65 @@ export default function NotepadPage() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-6 w-6 p-0 ml-2 text-[#00796B] hover:text-[#00796B]/80 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB] disabled:opacity-50"
+                                                className="ml-2 h-6 w-6 p-0 text-[#00796B] hover:text-[#00796B]/80 disabled:opacity-50 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB]"
                                                 disabled={isLoadingTags || !!tagsError}
                                             >
                                                 <PlusCircle className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent className="bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
+                                        <DropdownMenuContent className="border-[#4DB6AC]/50 bg-[#E0F2F1] text-[#263238] dark:bg-[#37474F] dark:text-[#E0F2F1]">
                                             <DropdownMenuLabel className="text-[#00796B] dark:text-[#4DB6AC]">Manage Tags</DropdownMenuLabel>
                                             <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                                            
+
                                             {/* Add Tag form */}
                                             <form onSubmit={handleCreateTag} className="p-2">
-                                                <div className="flex gap-2 mb-2">
-                                                <Input 
-                                                    placeholder="New tag name" 
-                                                    value={newTagName} 
-                                                    onChange={(e) => setNewTagName(e.target.value)} 
-                                                    className="h-7 text-[#263238] dark:text-[#E0F2F1] bg-transparent border-[#4DB6AC]/50"
-                                                />
-                                                <Button 
-                                                    type="submit" 
-                                                    size="sm" 
-                                                    disabled={isCreatingTag || !newTagName.trim()} 
-                                                    className="h-7 bg-[#00796B] hover:bg-[#00796B]/90 text-[#E0F2F1] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
-                                                >
-                                                    {isCreatingTag ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
-                                                </Button>
+                                                <div className="mb-2 flex gap-2">
+                                                    <Input
+                                                        placeholder="New tag name"
+                                                        value={newTagName}
+                                                        onChange={(e) => setNewTagName(e.target.value)}
+                                                        className="h-7 border-[#4DB6AC]/50 bg-transparent text-[#263238] dark:text-[#E0F2F1]"
+                                                    />
+                                                    <Button
+                                                        type="submit"
+                                                        size="sm"
+                                                        disabled={isCreatingTag || !newTagName.trim()}
+                                                        className="h-7 bg-[#00796B] text-[#E0F2F1] hover:bg-[#00796B]/90 dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
+                                                    >
+                                                        {isCreatingTag ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Add'}
+                                                    </Button>
                                                 </div>
-                                                {createTagError && <p className="text-red-600 dark:text-red-400 text-xs">{createTagError}</p>}
+                                                {createTagError && <p className="text-xs text-red-600 dark:text-red-400">{createTagError}</p>}
                                             </form>
-                                            
+
                                             <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                                            
+
                                             {/* Available tags list */}
                                             <div className="max-h-48 overflow-y-auto p-1">
                                                 {isLoadingTags ? (
-                                                <div className="flex justify-center p-2">
-                                                    <Loader2 className="h-4 w-4 animate-spin text-[#00796B] dark:text-[#4DB6AC]" />
-                                                </div>
+                                                    <div className="flex justify-center p-2">
+                                                        <Loader2 className="h-4 w-4 animate-spin text-[#00796B] dark:text-[#4DB6AC]" />
+                                                    </div>
                                                 ) : tagsError ? (
-                                                <p className="text-red-600 dark:text-red-400 text-xs text-center p-2">{tagsError}</p>
+                                                    <p className="p-2 text-center text-xs text-red-600 dark:text-red-400">{tagsError}</p>
                                                 ) : allTags.length === 0 ? (
-                                                <p className="text-[#263238]/60 dark:text-[#E0F2F1]/60 text-xs text-center p-2">No tags available</p>
+                                                    <p className="p-2 text-center text-xs text-[#263238]/60 dark:text-[#E0F2F1]/60">
+                                                        No tags available
+                                                    </p>
                                                 ) : (
-                                                allTags.map((tag) => {
-                                                    const isActive = activeNote?.tags?.some((t) => t.id === tag.id);
-                                                    return (
-                                                    <DropdownMenuCheckboxItem
-                                                        key={tag.id}
-                                                        checked={isActive}
-                                                        onCheckedChange={() => handleTagToggle(tag)}
-                                                        className={`${isActive ? 'bg-[#00796B]/10 dark:bg-[#4DB6AC]/10' : ''}`}
-                                                    >
-                                                        {tag.name}
-                                                    </DropdownMenuCheckboxItem>
-                                                    );
-                                                })
+                                                    allTags.map((tag) => {
+                                                        const isActive = activeNote?.tags?.some((t) => t.id === tag.id);
+                                                        return (
+                                                            <DropdownMenuCheckboxItem
+                                                                key={tag.id}
+                                                                checked={isActive}
+                                                                onCheckedChange={() => handleTagToggle(tag)}
+                                                                className={`${isActive ? 'bg-[#00796B]/10 dark:bg-[#4DB6AC]/10' : ''}`}
+                                                            >
+                                                                {tag.name}
+                                                            </DropdownMenuCheckboxItem>
+                                                        );
+                                                    })
                                                 )}
                                             </div>
                                         </DropdownMenuContent>
@@ -975,7 +977,12 @@ export default function NotepadPage() {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleMethodPanel}>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-[#263238] dark:text-[#E0F2F1]"
+                                            onClick={toggleMethodPanel}
+                                        >
                                             <Clock className="h-4 w-4" />
                                         </Button>
                                     </TooltipTrigger>
@@ -989,21 +996,17 @@ export default function NotepadPage() {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="h-7 w-7 text-[#00796B] hover:text-[#00796B]/80 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB]" 
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-[#00796B] hover:text-[#00796B]/80 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB]"
                                             onClick={handleAIReview}
                                             disabled={isReviewingWithAI || !activeNoteId}
                                         >
-                                            {isReviewingWithAI ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <Brain className="h-4 w-4" />
-                                            )}
+                                            {isReviewingWithAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
                                         </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent className="bg-[#E0F2F1] text-[#263238] dark:bg-[#37474F] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
+                                    <TooltipContent className="border-[#4DB6AC]/50 bg-[#E0F2F1] text-[#263238] dark:bg-[#37474F] dark:text-[#E0F2F1]">
                                         Review with Gemini AI
                                     </TooltipContent>
                                 </Tooltip>
@@ -1012,59 +1015,55 @@ export default function NotepadPage() {
                             {/* Learning Method selection dropdown */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
                                         className="h-7 w-7 text-[#00796B] hover:text-[#00796B]/80 dark:text-[#4DB6AC] dark:hover:text-[#B2DFDB]"
                                         disabled={!activeNoteId || isLoadingMethods}
                                     >
-                                        {isLoadingMethods ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Wand2 className="h-4 w-4" />
-                                        )}
+                                        {isLoadingMethods ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent 
-                                    align="end" 
-                                    className="w-56 bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50"
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="w-56 border-[#4DB6AC]/50 bg-[#E0F2F1] text-[#263238] dark:bg-[#37474F] dark:text-[#E0F2F1]"
                                 >
                                     <DropdownMenuLabel className="text-[#00796B] dark:text-[#4DB6AC]">Learning Method</DropdownMenuLabel>
                                     <DropdownMenuSeparator className="bg-[#4DB6AC]/50" />
-                                    
+
                                     {isLoadingMethods ? (
-                                    <div className="flex justify-center p-2">
-                                        <Loader2 className="h-4 w-4 animate-spin text-[#00796B] dark:text-[#4DB6AC]" />
-                                    </div>
+                                        <div className="flex justify-center p-2">
+                                            <Loader2 className="h-4 w-4 animate-spin text-[#00796B] dark:text-[#4DB6AC]" />
+                                        </div>
                                     ) : methodsError ? (
-                                    <p className="text-red-600 dark:text-red-400 text-xs text-center p-2">{methodsError}</p>
+                                        <p className="p-2 text-center text-xs text-red-600 dark:text-red-400">{methodsError}</p>
                                     ) : (
-                                    <>
-                                        <DropdownMenuCheckboxItem
-                                            checked={!methodIdNumber}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) handleMethodSelect(0);
-                                            }}
-                                        >
-                                            None
-                                        </DropdownMenuCheckboxItem>
-                                        {fetchedLearningMethods.map((method) => (
+                                        <>
                                             <DropdownMenuCheckboxItem
-                                                key={method.id}
-                                                checked={methodIdNumber === method.id}
+                                                checked={!methodIdNumber}
                                                 onCheckedChange={(checked) => {
-                                                    if (checked) handleMethodSelect(method.id);
+                                                    if (checked) handleMethodSelect(0);
                                                 }}
-                                                className={`${methodIdNumber === method.id ? 'bg-[#00796B]/10 dark:bg-[#4DB6AC]/10' : ''}`}
                                             >
-                                                {method.name}
+                                                None
                                             </DropdownMenuCheckboxItem>
-                                        ))}
-                                    </>
+                                            {fetchedLearningMethods.map((method) => (
+                                                <DropdownMenuCheckboxItem
+                                                    key={method.id}
+                                                    checked={methodIdNumber === method.id}
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) handleMethodSelect(method.id);
+                                                    }}
+                                                    className={`${methodIdNumber === method.id ? 'bg-[#00796B]/10 dark:bg-[#4DB6AC]/10' : ''}`}
+                                                >
+                                                    {method.name}
+                                                </DropdownMenuCheckboxItem>
+                                            ))}
+                                        </>
                                     )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                            
+
                             {/* Save button */}
                             <Button
                                 variant="ghost"
@@ -1073,9 +1072,9 @@ export default function NotepadPage() {
                                 onClick={handleSaveNote}
                                 disabled={isSaving}
                             >
-                                <Save className={`h-4 w-4 ${isSaving ? "animate-pulse" : ""}`} />
+                                <Save className={`h-4 w-4 ${isSaving ? 'animate-pulse' : ''}`} />
                             </Button>
-                            
+
                             {/* More options dropdown */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -1083,21 +1082,24 @@ export default function NotepadPage() {
                                         <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-[#E0F2F1] dark:bg-[#37474F] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="border-[#4DB6AC]/50 bg-[#E0F2F1] text-[#263238] dark:bg-[#37474F] dark:text-[#E0F2F1]"
+                                >
                                     {activeNoteId && (
-                                        <DropdownMenuItem 
-                                            className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
+                                        <DropdownMenuItem
+                                            className="text-red-600 focus:text-red-700 dark:text-red-400 dark:focus:text-red-300"
                                             onClick={handleDeleteNote}
                                             disabled={isDeleting}
                                         >
                                             {isDeleting ? (
                                                 <>
-                                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                                     Deleting...
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    <Trash2 className="mr-2 h-4 w-4" />
                                                     Delete Note
                                                 </>
                                             )}
@@ -1109,24 +1111,29 @@ export default function NotepadPage() {
                     </div>
                     {showTipWidget && <TipWidget onClose={() => setShowTipWidget(false)} />}
                     {/* Content area with optional method panel */}
-                    <div className="flex-1 flex overflow-hidden">
+                    <div className="flex flex-1 overflow-hidden">
                         {/* Note editor */}
                         <div className="flex-1 overflow-auto">
                             <textarea
                                 value={noteContent}
                                 onChange={(e) => setNoteContent(e.target.value)}
                                 placeholder="Start writing..."
-                                className="w-full h-full p-4 bg-[#E0F2F1] dark:bg-[#263238] text-[#263238] dark:text-[#E0F2F1] resize-none focus:outline-none"
+                                className="h-full w-full resize-none bg-[#E0F2F1] p-4 text-[#263238] focus:outline-none dark:bg-[#263238] dark:text-[#E0F2F1]"
                             />
                         </div>
                         {/* Method panel */}
                         {showMethodPanel && (
-                            <div className="w-80 border-l border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F] flex flex-col">
-                                <div className="flex items-center justify-between p-2 border-b border-[#4DB6AC]/30">
-                                    <span className="font-medium text-sm text-[#00796B] dark:text-[#4DB6AC]">
-                                        {selectedMethod ? selectedMethod.name : "Learning Method"}
+                            <div className="flex w-80 flex-col border-l border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#37474F]">
+                                <div className="flex items-center justify-between border-b border-[#4DB6AC]/30 p-2">
+                                    <span className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">
+                                        {selectedMethod ? selectedMethod.name : 'Learning Method'}
                                     </span>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]" onClick={toggleMethodPanel}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-[#263238] dark:text-[#E0F2F1]"
+                                        onClick={toggleMethodPanel}
+                                    >
                                         <X className="h-3.5 w-3.5" />
                                     </Button>
                                 </div>
@@ -1135,20 +1142,14 @@ export default function NotepadPage() {
                         )}
                     </div>
                     {/* Status bar */}
-                    <div className="flex items-center justify-between px-3 py-1 text-xs text-[#263238] dark:text-[#B2DFDB] border-t border-[#4DB6AC]/30 bg-[#B2DFDB] dark:bg-[#00796B]">
-                        <div>
-                            {activeNoteId
-                                ? "Last edited: " + activeNote?.updated_at
-                                : isCreatingNew
-                                    ? "New note"
-                                    : "No note selected"}
-                        </div>
+                    <div className="flex items-center justify-between border-t border-[#4DB6AC]/30 bg-[#B2DFDB] px-3 py-1 text-xs text-[#263238] dark:bg-[#00796B] dark:text-[#B2DFDB]">
+                        <div>{activeNoteId ? 'Last edited: ' + activeNote?.updated_at : isCreatingNew ? 'New note' : 'No note selected'}</div>
                         <div>{noteContent.split(/\s+/).filter(Boolean).length} words</div>
                     </div>
                 </div>
             </div>
             <Dialog open={showAIReviewDialog} onOpenChange={setShowAIReviewDialog}>
-                <DialogContent className="sm:max-w-md bg-[#E0F2F1] dark:bg-[#263238] text-[#263238] dark:text-[#E0F2F1] border-[#4DB6AC]/50">
+                <DialogContent className="border-[#4DB6AC]/50 bg-[#E0F2F1] text-[#263238] sm:max-w-md dark:bg-[#263238] dark:text-[#E0F2F1]">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-[#00796B] dark:text-[#4DB6AC]">
                             <Brain className="h-5 w-5" />
@@ -1158,21 +1159,21 @@ export default function NotepadPage() {
                             AI-powered analysis of your note's quality and effectiveness.
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     {aiReviewResult && (
-                        <div className="space-y-4 my-2">
+                        <div className="my-2 space-y-4">
                             <div className="space-y-2">
                                 <h3 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Rating</h3>
-                                <div className="p-3 rounded-md bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 text-[#263238] dark:text-[#E0F2F1]">
-                                    {aiReviewResult.rating !== undefined && aiReviewResult.rating !== null 
-                                        ? `${aiReviewResult.rating}/10` 
-                                        : "No rating available"}
+                                <div className="rounded-md border border-[#4DB6AC]/30 bg-[#4DB6AC]/10 p-3 text-[#263238] dark:text-[#E0F2F1]">
+                                    {aiReviewResult.rating !== undefined && aiReviewResult.rating !== null
+                                        ? `${aiReviewResult.rating}/10`
+                                        : 'No rating available'}
                                 </div>
                             </div>
-                            
+
                             <div className="space-y-2">
                                 <h3 className="text-sm font-medium text-[#00796B] dark:text-[#4DB6AC]">Feedback</h3>
-                                <div className="p-3 rounded-md bg-[#4DB6AC]/10 border border-[#4DB6AC]/30 text-[#263238] dark:text-[#E0F2F1] whitespace-pre-wrap overflow-y-auto max-h-64">
+                                <div className="max-h-64 overflow-y-auto rounded-md border border-[#4DB6AC]/30 bg-[#4DB6AC]/10 p-3 whitespace-pre-wrap text-[#263238] dark:text-[#E0F2F1]">
                                     {aiReviewResult.feedback}
                                 </div>
                             </div>
@@ -1180,15 +1181,15 @@ export default function NotepadPage() {
                     )}
 
                     {aiReviewError && (
-                        <div className="p-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 my-2">
+                        <div className="my-2 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-red-600 dark:text-red-400">
                             {aiReviewError}
                         </div>
                     )}
-                    
-                    <div className="flex justify-end gap-2 mt-4">
+
+                    <div className="mt-4 flex justify-end gap-2">
                         <Button
                             onClick={() => setShowAIReviewDialog(false)}
-                            className="bg-[#00796B] hover:bg-[#00796B]/90 text-[#E0F2F1] dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
+                            className="bg-[#00796B] text-[#E0F2F1] hover:bg-[#00796B]/90 dark:bg-[#4DB6AC] dark:text-[#263238] dark:hover:bg-[#B2DFDB]"
                         >
                             Close
                         </Button>
